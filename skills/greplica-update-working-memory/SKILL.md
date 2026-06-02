@@ -30,15 +30,42 @@ Use the current conversation/session context plus code evidence. Read:
 
 Use the current session as context, but verify durable code facts against files or diffs when possible.
 
+When you have a transcript file, scan it deliberately. Prioritize user messages and final accepted decisions over assistant suggestions, and search around terms such as `source`, `evidence`, `session`, `reason`, `metadata`, `future`, `next`, `later`, `out of scope`, `not built`, `proposal`, `eval`, `fixture`, `rubric`, `wrong`, `reject`, `don't`, and `instead`.
+
+When creating a session source, derive its identity from the actual session:
+
+- If a transcript file is available, read its session metadata first. For Codex JSONL transcripts, use `session_meta.payload.id`; also use `session_meta.payload.source` or `session_meta.payload.originator` to identify the session kind when present.
+- Build a stable source ID from that metadata, for example `source.codex_session.<session_id_slug>` or `source.claude_code_session.<session_id_slug>`. Slug the session ID by lowercasing it and replacing non-alphanumeric characters with `_`.
+- Set `ref` to a stable reference such as `codex-session:<session-id>` or `claude-code-session:<session-id>`, and set `title` to a concise human-readable session title.
+- Do not use generic IDs like `source.current_session` when a session ID or transcript identity is available.
+
+Before writing the proposal, scan the session against this checklist:
+
+- What code facts changed?
+- What cross-component flows changed?
+- What constraints did the user impose?
+- What rationale explains why the code was shaped this way?
+- What trade-offs or alternatives were discussed, rejected, or deferred?
+- What drift did the implementation introduce without an explicit durable decision?
+- What tasks remain?
+- What future work was explicitly discussed?
+
+Skip a category when the session has no clear evidence for it. Do not invent future work from implementation gaps; future work should be explicit in the session or clearly stated as a deferred part of the larger plan.
+
 ## What To Store
 
 Create memory for durable changes only:
 
-- architectural decisions made during the session
-- important new or changed flows/components
-- risks, questions, or follow-up tasks that future agents should know
-- facts that would save a future agent from rediscovering session context
-- superseding claims when an old claim is known to be stale
+- **Code facts**: specific implementation facts verified against code or diffs.
+- **Flow facts**: how behavior works across multiple components or commands.
+- **Constraints**: rules future agents must preserve while editing.
+- **Rationale**: why a design exists when the reason is not obvious from code.
+- **Trade-offs**: alternatives discussed, rejected, postponed, or intentionally kept out of scope.
+- **Drift**: important behavior or design consequences that exist without a clear explicit decision.
+- **Tasks**: next work that should be done.
+- **Future work**: planned later capabilities or follow-up directions that should not be forgotten.
+
+When existing memory is now too vague or stale, create a clearer claim with `supersedes[]` pointing at the old claim. In particular, look for old claims returned by `greplica graph context` that describe the changed area broadly but miss the new session nuance. A claim can be worth superseding even when the old text is not false, if it is now materially incomplete and future agents would be misled by leaving it active.
 
 Do not store:
 
@@ -48,6 +75,8 @@ Do not store:
 - secrets or environment variable values
 - obvious local code facts that a future agent can read immediately
 - claims based only on vague conversation unless marked `unknown`
+
+Do not stop at patch-visible facts. Also extract non-obvious session nuance: why the code was shaped this way, what alternatives were rejected, what future work was deferred, and what implicit drift the implementation introduced.
 
 ## Proposal Format
 
@@ -72,17 +101,17 @@ Write a JSON proposal to a temporary file:
     ],
     "sources": [
       {
-        "id": "source.current_session",
+        "id": "source.codex_session.example_session_id",
         "kind": "session",
-        "ref": "Current coding-agent session",
-        "title": "Current coding-agent session"
+        "ref": "codex-session:example-session-id",
+        "title": "Codex session example-session-id"
       }
     ],
     "edges": [
       {
         "kind": "evidenced_by",
         "from": "claim.example_session_decision",
-        "to": "source.current_session",
+        "to": "source.codex_session.example_session_id",
         "metadata": {
           "reason": "The decision was discussed and agreed during the current coding-agent session."
         }
@@ -117,8 +146,11 @@ If you create a session source, connect non-code session-derived claims with `ev
 - Use `code_verified` only for claims checked against code.
 - Use `source_verified` for claims grounded in the session.
 - Use `unknown` for unresolved tasks, questions, and risks.
-- Create one `session` source for the current session when storing session-derived claims.
+- Create one `session` source for the current session when storing session-derived claims, with a source ID derived from the actual session metadata.
 - Add a concise free-text `metadata.reason` to each `evidenced_by` edge.
+- Include tasks and future work only when the session discussed what remains to be built.
+- Prefer one precise superseding claim over leaving an older broad claim active beside a more specific update.
+- If the session changed validation, proposal normalization, or skill behavior, explicitly query existing memory for those areas and decide whether an older claim should be superseded.
 
 ## Validate And Apply
 

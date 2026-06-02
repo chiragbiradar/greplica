@@ -1,0 +1,287 @@
+diff --git a/libs/knowledge-graph/graph-context/context-builder.ts b/libs/knowledge-graph/graph-context/context-builder.ts
+index d9803f7..91ec67e 100644
+--- a/libs/knowledge-graph/graph-context/context-builder.ts
++++ b/libs/knowledge-graph/graph-context/context-builder.ts
+@@ -1,6 +1,6 @@
+ import type { Claim } from "../claim.js";
+ import type { GraphReadResult } from "../service.js";
+-import type { Component, Flow } from "../schema.js";
++import type { Component, Flow, Source } from "../schema.js";
+ import type { SqliteRepository } from "../../storage/sqlite/repository.js";
+ import { graphContextConfig, type GraphContextConfig } from "./config.js";
+ import {
+@@ -15,7 +15,7 @@ import { float32ArrayToBuffer, bufferToFloat32Array, cosineSimilarity } from "./
+ import { scoreBm25 } from "./bm25.js";
+ import { scoreExact } from "./exact.js";
+ import { rankContextDocuments, roundScore, selectRankedDocuments, type RankedContextDocument, type SemanticScoreEntry } from "./rank.js";
+-import type { ClaimContextResult, ComponentContextResult, EmbeddingStatus, FlowContextResult, GraphContextResult, GraphContextSource } from "./types.js";
++import type { ClaimContextResult, ClaimEvidenceResult, ComponentContextResult, EmbeddingStatus, FlowContextResult, GraphContextResult, GraphContextSource } from "./types.js";
+
+ export interface BuildGraphContextOptions {
+   warnOnCreatedEmbeddings?: boolean;
+@@ -35,6 +35,7 @@ export class GraphContextBuilder {
+     const claimDocuments = buildClaimDocuments(graph);
+     const componentDocuments = buildComponentDocuments(graph);
+     const flowDocuments = buildFlowDocuments(graph);
++    const evidenceByClaim = buildEvidenceByClaim(graph);
+     const documents = [...claimDocuments, ...componentDocuments, ...flowDocuments];
+     const embedder = new OpenAIEmbedder(config.embedding);
+     const embeddingStatus = await this.ensureEmbeddings(repoId, documents, embedder, config);
+@@ -56,7 +57,7 @@ export class GraphContextBuilder {
+       ranked.claims,
+       config,
+       { minimumSelected: config.ranking.minimumSelectedClaims },
+-    ).map(toClaimResult);
++    ).map((document, index) => toClaimResult(document, index, evidenceByClaim));
+
+     return {
+       query,
+@@ -75,6 +76,7 @@ export class GraphContextBuilder {
+         "flow",
+         config,
+       ),
++      sources: selectedEvidenceSources(selectedClaims),
+     };
+   }
+
+@@ -177,16 +179,55 @@ export class GraphContextBuilder {
+   }
+ }
+
+-function toClaimResult(document: RankedContextDocument, index: number): ClaimContextResult {
++function buildEvidenceByClaim(graph: GraphReadResult): Map<string, ClaimEvidenceResult[]> {
++  const sources = new Map(graph.sources.map((source) => [source.id, source]));
++  const evidenceByClaim = new Map<string, ClaimEvidenceResult[]>();
++
++  for (const edge of graph.edges) {
++    if (edge.kind !== "evidenced_by" || edge.from_type !== "claim" || edge.to_type !== "source") continue;
++    const source = sources.get(edge.to_id);
++    if (!source) continue;
++
++    const existing = evidenceByClaim.get(edge.from_id) ?? [];
++    existing.push({
++      source,
++      reason: evidenceReason(edge.metadata),
++    });
++    evidenceByClaim.set(edge.from_id, existing);
++  }
++
++  return evidenceByClaim;
++}
++
++function evidenceReason(metadata: Record<string, unknown> | undefined): string {
++  return typeof metadata?.reason === "string" ? metadata.reason : "";
++}
++
++function toClaimResult(
++  document: RankedContextDocument,
++  index: number,
++  evidenceByClaim: Map<string, ClaimEvidenceResult[]>,
++): ClaimContextResult {
+   return {
+     rank: index + 1,
+     score: roundScore(document.score),
+     signals: roundSignals(document),
+     object: document.document.object as Claim,
+     about: document.document.about,
++    evidence: evidenceByClaim.get(document.document.id) ?? [],
+   };
+ }
+
++function selectedEvidenceSources(claims: ClaimContextResult[]): Source[] {
++  const sourcesById = new Map<string, Source>();
++  for (const claim of claims) {
++    for (const evidence of claim.evidence) {
++      sourcesById.set(evidence.source.id, evidence.source);
++    }
++  }
++  return [...sourcesById.values()].sort((a, b) => a.id.localeCompare(b.id));
++}
++
+ function selectGraphObjects(
+   ranked: RankedContextDocument[],
+   claims: ClaimContextResult[],
+diff --git a/libs/knowledge-graph/graph-context/types.ts b/libs/knowledge-graph/graph-context/types.ts
+index 422ac17..ef93f96 100644
+--- a/libs/knowledge-graph/graph-context/types.ts
++++ b/libs/knowledge-graph/graph-context/types.ts
+@@ -1,5 +1,5 @@
+ import type { Claim } from "../claim.js";
+-import type { Component, Flow } from "../schema.js";
++import type { Component, Flow, Source } from "../schema.js";
+
+ export interface EmbeddingStatus {
+   checked_objects: number;
+@@ -25,12 +25,18 @@ export interface ContextSignals {
+   graph_sources: GraphContextSource[];
+ }
+
++export interface ClaimEvidenceResult {
++  source: Source;
++  reason: string;
++}
++
+ export interface ClaimContextResult {
+   rank: number;
+   score: number;
+   signals: ContextSignals;
+   object: Claim;
+   about: Array<{ type: "component" | "flow"; id: string }>;
++  evidence: ClaimEvidenceResult[];
+ }
+
+ export interface GraphObjectContextResult<TObject> {
+@@ -54,4 +60,5 @@ export interface GraphContextResult {
+   claims: ClaimContextResult[];
+   components: ComponentContextResult[];
+   flows: FlowContextResult[];
++  sources: Source[];
+ }
+diff --git a/libs/knowledge-graph/schema.ts b/libs/knowledge-graph/schema.ts
+index 3252b8c..217d386 100644
+--- a/libs/knowledge-graph/schema.ts
++++ b/libs/knowledge-graph/schema.ts
+@@ -30,14 +30,7 @@ export interface Flow {
+   name: string;
+ }
+
+-export type SourceKind =
+-  | "session"
+-  | "prd"
+-  | "doc"
+-  | "issue"
+-  | "pr"
+-  | "artifact"
+-  | "code";
++export type SourceKind = "session";
+
+ export interface Source {
+   id: SourceId;
+diff --git a/libs/knowledge-graph/validate-proposal.ts b/libs/knowledge-graph/validate-proposal.ts
+index d052348..ee513b4 100644
+--- a/libs/knowledge-graph/validate-proposal.ts
++++ b/libs/knowledge-graph/validate-proposal.ts
+@@ -6,7 +6,7 @@ import type { GraphObjectType } from "./schema.js";
+ const claimKinds = new Set(["fact", "requirement", "decision", "task", "question", "risk"]);
+ const claimTruths = new Set(["code_verified", "source_verified", "unknown"]);
+ const claimIntents = new Set(["intended", "accidental", "unknown"]);
+-const sourceKinds = new Set(["session", "prd", "doc", "issue", "pr", "artifact", "code"]);
++const sourceKinds = new Set(["session"]);
+ const edgeKinds = new Set(["about", "contains", "touches", "supersedes", "evidenced_by"]);
+ const graphObjectTypes = new Set(["component", "flow", "claim", "edge", "source"]);
+
+@@ -133,11 +133,27 @@ export function validateProposal(
+     if (edge.metadata !== undefined && !isRecord(edge.metadata)) {
+       errors.push(`Edge ${stringId(edge.id)} metadata must be an object when present.`);
+     }
++
++    if (kind === "evidenced_by") {
++      validateEvidenceMetadata(edge, errors);
++    }
+   }
+
+   return { valid: errors.length === 0, errors };
+ }
+
++function validateEvidenceMetadata(edge: Record<string, unknown>, errors: string[]): void {
++  if (!isRecord(edge.metadata)) {
++    errors.push(`Edge ${stringId(edge.id)} evidenced_by edges require metadata.reason.`);
++    return;
++  }
++
++  const reason = edge.metadata.reason;
++  if (!isNonEmptyString(reason)) {
++    errors.push(`Edge ${stringId(edge.id)} evidenced_by metadata.reason must be a non-empty string.`);
++  }
++}
++
+ function validateSubjectBase(
+   type: GraphObjectType,
+   id: unknown,
+diff --git a/skills/greplica-bootstrap/SKILL.md b/skills/greplica-bootstrap/SKILL.md
+index ebe8344..3d1cc0f 100644
+--- a/skills/greplica-bootstrap/SKILL.md
++++ b/skills/greplica-bootstrap/SKILL.md
+@@ -83,6 +83,7 @@ Write a JSON proposal to a temporary file:
+ Allowed claim kinds: `fact`, `requirement`, `decision`, `task`, `question`, `risk`.
+ Allowed truth values: `code_verified`, `source_verified`, `unknown`.
+ Allowed intent values: `intended`, `accidental`, `unknown`.
++Allowed source kinds: `session`.
+
+ Use compact relationship fields where possible:
+
+@@ -92,7 +93,7 @@ Use compact relationship fields where possible:
+ - `claim.about[]` for Claim -> Component/Flow.
+ - `claim.supersedes[]`, `component.supersedes[]`, or `flow.supersedes[]` only when replacing known existing memory.
+
+-Sources are external artifacts such as sessions, PRDs, docs, issues, PRs, or artifacts. Do not create a source just because code was inspected during bootstrap.
++Sources currently represent session artifacts. Do not create a source just because code was inspected during bootstrap.
+
+ ## Quality Bar
+
+diff --git a/skills/greplica-update-working-memory/SKILL.md b/skills/greplica-update-working-memory/SKILL.md
+index 781c762..d49a529 100644
+--- a/skills/greplica-update-working-memory/SKILL.md
++++ b/skills/greplica-update-working-memory/SKILL.md
+@@ -67,8 +67,7 @@ Write a JSON proposal to a temporary file:
+         "text": "The session decided to keep the CLI primitive-focused and put workflows in coding-agent skills.",
+         "truth": "source_verified",
+         "intent": "intended",
+-        "about": [],
+-        "evidenced_by": ["source.current_session"]
++        "about": []
+       }
+     ],
+     "sources": [
+@@ -79,7 +78,16 @@ Write a JSON proposal to a temporary file:
+         "title": "Current coding-agent session"
+       }
+     ],
+-    "edges": []
++    "edges": [
++      {
++        "kind": "evidenced_by",
++        "from": "claim.example_session_decision",
++        "to": "source.current_session",
++        "metadata": {
++          "reason": "The decision was discussed and agreed during the current coding-agent session."
++        }
++      }
++    ]
+   }
+ }
+ ```
+@@ -87,6 +95,7 @@ Write a JSON proposal to a temporary file:
+ Allowed claim kinds: `fact`, `requirement`, `decision`, `task`, `question`, `risk`.
+ Allowed truth values: `code_verified`, `source_verified`, `unknown`.
+ Allowed intent values: `intended`, `accidental`, `unknown`.
++Allowed source kinds: `session`.
+
+ Use compact relationship fields where possible:
+
+@@ -94,10 +103,11 @@ Use compact relationship fields where possible:
+ - `component.contains[]` for Component -> Component.
+ - `flow.contains[]` for Flow -> Flow.
+ - `claim.about[]` for Claim -> Component/Flow.
+-- `claim.evidenced_by[]` for Claim -> Source.
+ - `claim.supersedes[]`, `component.supersedes[]`, or `flow.supersedes[]` only when replacing known existing memory.
+
+-If you create a session source, connect source-backed claims with `evidenced_by`.
++For source-backed claims, use explicit `edges[]` entries with `kind: "evidenced_by"` and `metadata.reason`. Do not use compact `claim.evidenced_by[]`; every evidence edge must explain why the session supports the claim.
++
++If you create a session source, connect non-code session-derived claims with `evidenced_by` edges. Code-verified claims do not need session evidence unless the claim is also recording a session decision, requirement, question, risk, trade-off, or task.
+
+ ## Quality Bar
+
+@@ -105,8 +115,10 @@ If you create a session source, connect source-backed claims with `evidenced_by`
+ - Reuse existing components/flows when `greplica graph context` finds them.
+ - Create new components/flows only when the session introduced or clarified a durable area.
+ - Use `code_verified` only for claims checked against code.
+-- Use `source_verified` for claims grounded in the session or external artifacts.
++- Use `source_verified` for claims grounded in the session.
+ - Use `unknown` for unresolved tasks, questions, and risks.
++- Create one `session` source for the current session when storing session-derived claims.
++- Add a concise free-text `metadata.reason` to each `evidenced_by` edge.
+
+ ## Validate And Apply
+

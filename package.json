@@ -11,7 +11,8 @@
     "prepare": "npm run build",
     "typecheck": "tsc --noEmit",
     "eval:bootstrap-current": "npm run build && node dist/evals/cases/bootstrap-current-repo-at-8038fe8/run.js",
-    "eval:search-current": "npm run build && node dist/evals/cases/search-current-repo-at-8038fe8/run.js"
+    "eval:search-current": "npm run build && node dist/evals/cases/search-current-repo-at-8038fe8/run.js",
+    "eval:update-working-memory-source-evidence": "npm run build && node dist/evals/cases/update-working-memory-source-evidence-at-0438915/run.js"
   },
   "files": [
     "dist",
