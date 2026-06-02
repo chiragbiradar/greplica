@@ -37,7 +37,7 @@ npm install -g /tmp/greplica
 
 If `/tmp/greplica` already exists, update it or use a fresh temporary clone.
 
-If global npm install is not allowed, use the agent's normal npm prefix/tool-install approach and make sure `greplica` is on PATH for future sessions.
+If global npm install is not allowed, use the agent's normal npm prefix/tool-install approach and make sure `greplica` is on PATH for future sessions. For an isolated npm prefix, use the equivalent of `npm install -g --prefix <prefix-dir> /tmp/greplica` and add `<prefix-dir>/bin` to PATH.
 
 Install these two skill folders from the cloned repo:
 
