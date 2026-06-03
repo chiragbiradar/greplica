@@ -30,7 +30,18 @@ Use the current conversation/session context plus code evidence. Read:
 
 Use the current session as context, but verify durable code facts against files or diffs when possible.
 
-When you have a transcript file, scan it deliberately before writing the proposal. Get its line count first, then read every line in chunks if needed; do not rely only on the first chunk, keyword search, code diffs, or final assistant summary. Prioritize user messages and final accepted decisions over assistant suggestions, and search around terms such as `source`, `evidence`, `session`, `reason`, `metadata`, `future`, `next`, `later`, `out of scope`, `not built`, `proposal`, `eval`, `fixture`, `rubric`, `wrong`, `reject`, `don't`, and `instead`.
+When you have a transcript file, run this transcript extraction workflow before writing the proposal:
+
+1. Get the transcript line count, then read every line in chunks if needed.
+2. Build a candidate inventory from the transcript before relying on code diffs or final assistant summaries.
+3. Put candidates into buckets: code facts, flow facts, user constraints, rationale, trade-offs/rejected alternatives, negative decisions/do-not-do rules, deferred work/future work, drift, and eval/fixture/testing/process constraints.
+4. For each candidate, record the source line/message, intended memory role, and whether it should be code_verified, source_verified, unknown, or dropped.
+5. Drop only candidates that are transient, duplicate, unsupported, obvious from local code, or not useful to a future agent.
+6. Keep explicit user corrections, "do not" statements, "not built" statements, and eval/process constraints unless they are clearly transient.
+7. Write one focused claim per kept durable candidate. Do not merge candidates from different buckets into one broad claim.
+8. Before validating, review dropped candidates and re-add any durable session decision that would be hard to recover from code alone.
+
+Prioritize user messages and final accepted decisions over assistant suggestions. Search around terms such as `source`, `evidence`, `session`, `reason`, `metadata`, `future`, `next`, `later`, `out of scope`, `not built`, `proposal`, `eval`, `fixture`, `rubric`, `wrong`, `reject`, `don't`, and `instead`.
 
 When creating a session source, derive its identity from the actual session:
 
@@ -66,6 +77,8 @@ Create memory for durable changes only:
 - **Future work**: planned later capabilities or follow-up directions that should not be forgotten.
 
 When existing memory is now too vague or stale, create a clearer claim with `supersedes[]` pointing at the old claim. In particular, look for old claims returned by `greplica graph context` that describe the changed area broadly but miss the new session nuance. A claim can be worth superseding even when the old text is not false, if it is now materially incomplete and future agents would be misled by leaving it active.
+
+If a new claim materially narrows, qualifies, or corrects an existing claim returned by `greplica graph context`, encode that relationship with `supersedes[]`; do not rely on wording alone. Before validating, review the proposal for changed validation rules, compact relationship behavior, and workflow claims that should supersede older broad memory.
 
 Do not store:
 

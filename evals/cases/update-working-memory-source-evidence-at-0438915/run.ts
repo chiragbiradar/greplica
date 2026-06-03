@@ -189,6 +189,20 @@ interface JudgeOutput {
   };
 }
 
+interface ProposalClaim {
+  id: string;
+  supersedes?: unknown;
+}
+
+interface ProposalEdge {
+  kind?: unknown;
+  from?: unknown;
+  from_id?: unknown;
+  to?: unknown;
+  to_id?: unknown;
+  metadata?: unknown;
+}
+
 interface ScoreResult {
   expected_memory_score: number;
   role_correctness_score: number;
@@ -376,7 +390,7 @@ async function runOpenAiJudge(
     model,
     judge_input_path: judgeInputPath,
     judge_output_path: judgeOutputPath,
-    score: scoreJudgeOutput(rubric, judgeOutput),
+    score: scoreJudgeOutput(rubric, judgeOutput, readJson<unknown>(context.updateProposalPath)),
   };
 }
 
@@ -635,8 +649,7 @@ async function requestJudge(apiKey: string, model: string, input: JudgeInput): P
   return JSON.parse(outputText) as JudgeOutput;
 }
 
-function scoreJudgeOutput(rubric: Rubric, judge: JudgeOutput): ScoreResult {
-  const expectedById = new Map(rubric.judge.expected_memories.map((memory) => [memory.id, memory]));
+function scoreJudgeOutput(rubric: Rubric, judge: JudgeOutput, proposal: unknown): ScoreResult {
   const classifiedById = new Map(judge.expected_memories.map((memory) => [memory.expected_id, memory]));
   const totalExpectedWeight = rubric.judge.expected_memories.reduce((sum, memory) => sum + memory.weight, 0);
   let presentWeight = 0;
@@ -661,7 +674,11 @@ function scoreJudgeOutput(rubric: Rubric, judge: JudgeOutput): ScoreResult {
     ? 0
     : (evidenceCorrectWeight / presentWeight) * rubric.score.evidence_correctness_points;
 
-  const presentSupersedes = new Set(judge.supersedes.filter((item) => item.present).map((item) => item.expected_id));
+  const presentSupersedes = new Set(
+    rubric.judge.expected_supersedes
+      .filter((expected) => hasSupersedes(proposal, expected.old_claim_id))
+      .map((expected) => expected.id),
+  );
   const supersedesScore = rubric.judge.expected_supersedes.length === 0
     ? rubric.score.supersedes_points
     : (presentSupersedes.size / rubric.judge.expected_supersedes.length) * rubric.score.supersedes_points;
@@ -685,6 +702,59 @@ function scoreJudgeOutput(rubric: Rubric, judge: JudgeOutput): ScoreResult {
     pass_threshold: rubric.score.pass_threshold,
     passed: finalScore >= rubric.score.pass_threshold,
   };
+}
+
+function hasSupersedes(proposal: unknown, oldClaimId: string): boolean {
+  const creates = proposalCreates(proposal);
+  if (!creates) return false;
+
+  for (const claim of proposalClaims(creates)) {
+    if (stringArray(claim.supersedes).includes(oldClaimId)) return true;
+  }
+
+  return proposalEdges(creates).some((edge) => {
+    return edge.kind === "supersedes" && edgeTo(edge) === oldClaimId && typeof edgeFrom(edge) === "string";
+  });
+}
+
+function proposalCreates(proposal: unknown): Record<string, unknown> | undefined {
+  if (!isRecord(proposal) || !isRecord(proposal.creates)) return undefined;
+  return proposal.creates;
+}
+
+function proposalClaims(creates: Record<string, unknown>): ProposalClaim[] {
+  if (!Array.isArray(creates.claims)) return [];
+  return creates.claims.flatMap((claim) => {
+    if (!isRecord(claim) || typeof claim.id !== "string") return [];
+    return [{ id: claim.id, supersedes: claim.supersedes }];
+  });
+}
+
+function proposalEdges(creates: Record<string, unknown>): ProposalEdge[] {
+  if (!Array.isArray(creates.edges)) return [];
+  return creates.edges.flatMap((edge) => {
+    if (!isRecord(edge)) return [];
+    return [{
+      kind: edge.kind,
+      from: edge.from,
+      from_id: edge.from_id,
+      to: edge.to,
+      to_id: edge.to_id,
+      metadata: edge.metadata,
+    }];
+  });
+}
+
+function stringArray(value: unknown): string[] {
+  return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : [];
+}
+
+function edgeFrom(edge: ProposalEdge): string {
+  return typeof edge.from === "string" ? edge.from : typeof edge.from_id === "string" ? edge.from_id : "";
+}
+
+function edgeTo(edge: ProposalEdge): string {
+  return typeof edge.to === "string" ? edge.to : typeof edge.to_id === "string" ? edge.to_id : "";
 }
 
 function extractOutputText(body: Record<string, unknown>): string {
