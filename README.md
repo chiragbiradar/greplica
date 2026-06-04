@@ -60,7 +60,7 @@ greplica-bootstrap
 greplica-update-working-memory
 ```
 
-After installing skills, verify:
+After installing skills, verify the install:
 
 ```bash
 greplica doctor
@@ -94,6 +94,8 @@ Use greplica-update-working-memory for this session.
 
 Run bootstrap once near the start of using Greplica in a repo. Run update working memory near the end of a coding session when the session contains durable decisions, changed flows, constraints, follow-up work, or useful implementation context.
 
+Do not run `greplica doctor` before normal Greplica commands. Use the intended command directly, such as `greplica graph context "<query>"`; if it fails, use the error message to decide whether `doctor` would help diagnose installation, repo detection, or OpenAI configuration.
+
 ## Configuration
 
 `greplica` looks for `OPENAI_API_KEY` in this order:
@@ -117,6 +119,8 @@ greplica proposal apply <proposal.json>
 ```
 
 `greplica` automatically prepares repo memory state when commands run, so users should not need a separate init step.
+
+`greplica doctor` is for install verification and diagnosing failures, not a required preflight before every Greplica command.
 
 ## Alpha Status
 
