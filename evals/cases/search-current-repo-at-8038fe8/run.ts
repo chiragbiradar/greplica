@@ -174,7 +174,7 @@ function prepareTargetRepo(context: RunContext): void {
 }
 
 function runQuery(context: RunContext, rubric: SearchRubric, queryCase: SearchQueryCase): QueryScore {
-  const command = runProductCommand(context, "graph", "context", queryCase.query);
+  const command = runProductCommand(context, "graph", "context", queryCase.query, "--debug");
   const returnedIds = command.exit_code === 0 ? parseReturnedIds(command.stdout ?? "") : [];
   const qrels = qrelsFor(queryCase);
   const metrics = scoreQuery(qrels, returnedIds, rubric.k);

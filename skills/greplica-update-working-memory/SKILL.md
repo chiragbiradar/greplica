@@ -12,9 +12,11 @@ Update working memory with durable information learned during this coding sessio
 
 Run from the target repository root or any subdirectory inside it.
 
-1. Run `greplica doctor`.
-2. If `greplica` is missing, tell the user to run the Greplica setup prompt from the README.
-3. If `OPENAI_API_KEY` is missing, stop. Do not ask the user to paste the key into chat. Tell them to set it in their shell before launching the coding agent, or in repo-root `.env.local`.
+Do not run `greplica doctor` as a routine preflight. Run the needed Greplica commands directly; if one fails, use the error to decide whether `greplica doctor` would help diagnose installation, repo detection, or OpenAI configuration.
+
+If `greplica` is missing, tell the user to run the Greplica setup prompt from the README.
+
+If a Greplica command reports that `OPENAI_API_KEY` is missing, stop. Do not ask the user to paste the key into chat. Tell them to set it in their shell before launching the coding agent, or in repo-root `.env.local`.
 
 `greplica` automatically prepares repo memory state; do not ask the user to run a separate initialization command.
 

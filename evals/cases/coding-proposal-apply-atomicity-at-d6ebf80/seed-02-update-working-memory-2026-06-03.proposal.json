@@ -1,0 +1,80 @@
+{
+  "title": "Update working memory from session transcript replay eval",
+  "summary": "Capture durable context from the session that improved the update-working-memory transcript replay eval and skill guidance.",
+  "creates": {
+    "claims": [
+      {
+        "id": "claim.update_memory_eval_uses_filtered_markdown_transcript",
+        "kind": "fact",
+        "text": "The update-working-memory source-evidence eval now projects the raw Codex JSONL fixture into a filtered Markdown transcript containing whitelisted session metadata plus human and agent messages, strips historical system/developer instruction blocks, and passes that Markdown transcript to the replay agent instead of the raw JSONL.",
+        "truth": "code_verified",
+        "intent": "intended",
+        "about": [
+          "component.evals_agent_runner",
+          "flow.eval_workflows"
+        ]
+      },
+      {
+        "id": "claim.update_memory_skill_requires_full_transcript_scan",
+        "kind": "fact",
+        "text": "The update-working-memory skill now tells agents with a transcript file to get the transcript line count, read every line in chunks, keep distinct durable memories separate, preserve explicit negative or deferred decisions, and avoid broad code-verified workflow claims unless each part is patch-verified.",
+        "truth": "code_verified",
+        "intent": "intended",
+        "about": [
+          "component.greplica_skills",
+          "flow.greplica_skill_workflows"
+        ]
+      },
+      {
+        "id": "claim.transcript_replay_eval_keeps_only_replay_specific_prompting",
+        "kind": "decision",
+        "text": "General update-working-memory extraction behavior belongs in the reusable skill, while the replay eval prompt should only carry eval-specific differences such as filtered transcript paths, proposal output path, historical replay constraints, and not applying the proposal.",
+        "truth": "source_verified",
+        "intent": "intended",
+        "about": [
+          "component.evals_agent_runner",
+          "component.greplica_skills",
+          "flow.eval_workflows",
+          "flow.greplica_skill_workflows"
+        ]
+      },
+      {
+        "id": "claim.update_memory_candidate_inventory_followup",
+        "kind": "task",
+        "text": "Improve the update-working-memory skill with a staged transcript extraction workflow that builds a candidate inventory across buckets such as code facts, constraints, rationale, trade-offs, negative decisions, deferred work, drift, eval/process constraints, and a dropped-candidate audit before writing proposal JSON.",
+        "truth": "source_verified",
+        "intent": "intended",
+        "about": [
+          "component.greplica_skills",
+          "flow.greplica_skill_workflows"
+        ]
+      }
+    ],
+    "sources": [
+      {
+        "id": "source.codex_session.2026_06_03_transcript_replay_eval",
+        "kind": "session",
+        "ref": "codex-session:2026-06-03-transcript-replay-eval",
+        "title": "Codex session on update-working-memory transcript replay eval"
+      }
+    ],
+    "edges": [
+      {
+        "kind": "evidenced_by",
+        "from": "claim.transcript_replay_eval_keeps_only_replay_specific_prompting",
+        "to": "source.codex_session.2026_06_03_transcript_replay_eval",
+        "metadata": {
+          "reason": "The user corrected the implementation layering: general behavior should live in the reusable skill, while only replay-specific differences should remain in the eval prompt."
+        }
+      },
+      {
+        "kind": "evidenced_by",
+        "from": "claim.update_memory_candidate_inventory_followup",
+        "to": "source.codex_session.2026_06_03_transcript_replay_eval",
+        "metadata": {
+          "reason": "The user asked for suggestions such as a workflow that first extracts many candidates, buckets transcript evidence, and audits omissions before writing memory."
+        }
+      }
+    ]
+  }
+}
