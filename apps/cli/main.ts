@@ -6,6 +6,7 @@ import type { KnowledgeGraphService, RepoRef } from "../../libs/knowledge-graph/
 import { envVarSource, loadRepoEnv, type LoadedRepoEnv } from "../../libs/env/load-local-env.js";
 import { graphContextConfig } from "../../libs/knowledge-graph/graph-context/config.js";
 import { OpenAIEmbedder } from "../../libs/knowledge-graph/graph-context/openai-embedder.js";
+import { compactGraphContextResult, renderGraphContextMarkdown } from "../../libs/knowledge-graph/graph-context/render.js";
 import { buildGraphFolderExport } from "../../libs/knowledge-graph/folder-export.js";
 import { detectRepoContext } from "./repo-context.js";
 
@@ -49,11 +50,18 @@ async function main(argv: string[]): Promise<void> {
   }
 
   if (area === "graph" && action === "context") {
-    const query = rest.filter((arg) => arg !== "--json").join(" ").trim();
+    const output = parseGraphContextOutput(rest);
+    const query = rest.filter((arg) => arg !== "--json" && arg !== "--debug").join(" ").trim();
     if (query.length === 0) throw new Error(`Usage: greplica graph ${action} <query>`);
     const { repo, service } = createCommandContext();
     const result = await service.contextGraph(repo, query);
-    console.log(JSON.stringify(result, null, 2));
+    if (output === "debug") {
+      console.log(JSON.stringify(result, null, 2));
+    } else if (output === "json") {
+      console.log(JSON.stringify(compactGraphContextResult(result), null, 2));
+    } else {
+      console.log(renderGraphContextMarkdown(result));
+    }
     return;
   }
 
@@ -177,6 +185,15 @@ function requireFile(file: string | undefined, usage: string): string {
   return file;
 }
 
+function parseGraphContextOutput(args: string[]): "markdown" | "json" | "debug" {
+  const json = args.includes("--json");
+  const debug = args.includes("--debug");
+  if (json && debug) throw new Error("Use either --json or --debug, not both.");
+  if (debug) return "debug";
+  if (json) return "json";
+  return "markdown";
+}
+
 function writeGraphFolderExport(outputDir: string, files: Array<{ path: string; content: string }>): void {
   mkdirSync(outputDir, { recursive: true });
   for (const file of files) {
@@ -212,7 +229,7 @@ function printHelp(): void {
   console.log(`Usage:
   ${cli} doctor [--check-openai]
   ${cli} graph read
-  ${cli} graph context <query>
+  ${cli} graph context <query> [--json|--debug]
   ${cli} graph export <dir>
   ${cli} proposal validate <file>
   ${cli} proposal apply <file>`);

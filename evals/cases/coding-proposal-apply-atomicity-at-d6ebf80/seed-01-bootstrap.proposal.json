@@ -1,0 +1,362 @@
+{
+  "title": "Bootstrap repo memory",
+  "summary": "Top-level engineering memory for the Greplica CLI, graph model, proposal pipeline, storage, retrieval, skills, and eval harness.",
+  "creates": {
+    "components": [
+      {
+        "id": "component.cli_app",
+        "name": "Greplica CLI command surface",
+        "code_anchor": "apps/cli/main.ts",
+        "contains": [
+          "component.repo_env_context"
+        ]
+      },
+      {
+        "id": "component.repo_env_context",
+        "name": "Repo detection and repo-local env loading",
+        "code_anchor": "apps/cli/repo-context.ts, libs/env/load-local-env.ts"
+      },
+      {
+        "id": "component.knowledge_graph_service",
+        "name": "KnowledgeGraphService boundary",
+        "code_anchor": "libs/knowledge-graph/service.ts"
+      },
+      {
+        "id": "component.graph_schema",
+        "name": "Knowledge graph object and edge model",
+        "code_anchor": "libs/knowledge-graph/schema.ts, libs/knowledge-graph/claim.ts, libs/knowledge-graph/edge.ts, libs/knowledge-graph/scope.ts, libs/knowledge-graph/commit.ts"
+      },
+      {
+        "id": "component.proposal_model",
+        "name": "Proposal model and compact normalization",
+        "code_anchor": "libs/knowledge-graph/proposal.ts"
+      },
+      {
+        "id": "component.proposal_validation",
+        "name": "Proposal validation",
+        "code_anchor": "libs/knowledge-graph/validate-proposal.ts"
+      },
+      {
+        "id": "component.sqlite_database_schema",
+        "name": "SQLite database path, open, schema, and migration",
+        "code_anchor": "libs/storage/sqlite/db.ts, libs/storage/sqlite/schema.ts, libs/storage/sqlite/migrate.ts"
+      },
+      {
+        "id": "component.sqlite_repository",
+        "name": "SQLite repository operations and active graph view",
+        "code_anchor": "libs/storage/sqlite/repository.ts"
+      },
+      {
+        "id": "component.graph_context_retrieval",
+        "name": "Graph context retrieval and embeddings",
+        "code_anchor": "libs/knowledge-graph/graph-context"
+      },
+      {
+        "id": "component.greplica_skills",
+        "name": "Bundled Greplica agent skills",
+        "code_anchor": "skills/greplica-bootstrap/SKILL.md, skills/greplica-update-working-memory/SKILL.md"
+      },
+      {
+        "id": "component.evals_agent_runner",
+        "name": "Eval harness and Codex agent runner",
+        "code_anchor": "evals, libs/agent-runner"
+      }
+    ],
+    "flows": [
+      {
+        "id": "flow.doctor_and_init",
+        "name": "Doctor and init prepare repo memory and report setup readiness",
+        "touches": [
+          "component.cli_app",
+          "component.repo_env_context",
+          "component.knowledge_graph_service",
+          "component.sqlite_database_schema",
+          "component.sqlite_repository",
+          "component.graph_context_retrieval"
+        ]
+      },
+      {
+        "id": "flow.graph_read_and_context",
+        "name": "Graph read and context return current memory and ranked query results",
+        "touches": [
+          "component.cli_app",
+          "component.knowledge_graph_service",
+          "component.sqlite_repository",
+          "component.graph_context_retrieval"
+        ]
+      },
+      {
+        "id": "flow.proposal_validation",
+        "name": "Proposal validation normalizes compact input and validates graph shape",
+        "touches": [
+          "component.cli_app",
+          "component.knowledge_graph_service",
+          "component.proposal_model",
+          "component.proposal_validation",
+          "component.graph_schema"
+        ]
+      },
+      {
+        "id": "flow.proposal_apply",
+        "name": "Proposal apply writes working-scope graph records and ensures embeddings",
+        "touches": [
+          "component.cli_app",
+          "component.knowledge_graph_service",
+          "component.proposal_model",
+          "component.proposal_validation",
+          "component.sqlite_repository",
+          "component.graph_context_retrieval"
+        ]
+      },
+      {
+        "id": "flow.compact_relationships_to_edges",
+        "name": "Compact relationship fields become canonical graph edges",
+        "touches": [
+          "component.proposal_model",
+          "component.graph_schema",
+          "component.proposal_validation"
+        ]
+      },
+      {
+        "id": "flow.greplica_skill_workflows",
+        "name": "Bundled skills guide bootstrap and session working-memory updates",
+        "touches": [
+          "component.greplica_skills",
+          "component.cli_app",
+          "component.proposal_model",
+          "component.proposal_validation",
+          "component.graph_context_retrieval"
+        ]
+      },
+      {
+        "id": "flow.eval_workflows",
+        "name": "Eval runs create isolated repos and Greplica homes to score bootstrap, search, and update behavior",
+        "touches": [
+          "component.evals_agent_runner",
+          "component.cli_app",
+          "component.greplica_skills",
+          "component.graph_context_retrieval"
+        ]
+      }
+    ],
+    "claims": [
+      {
+        "id": "claim.readme_cli_primitives_skills",
+        "kind": "fact",
+        "text": "The README describes Greplica as a CLI that stores lightweight codebase memory with small graph-memory primitives, while agent workflows are supplied by bundled skills.",
+        "truth": "code_verified",
+        "intent": "intended",
+        "about": [
+          "component.cli_app",
+          "component.greplica_skills"
+        ]
+      },
+      {
+        "id": "claim.cli_thin_dispatcher",
+        "kind": "fact",
+        "text": "The CLI parses argv, reads JSON proposal files, prints command output, and delegates graph behavior to KnowledgeGraphService after detecting repo context and loading repo env.",
+        "truth": "code_verified",
+        "intent": "intended",
+        "about": [
+          "component.cli_app",
+          "component.knowledge_graph_service",
+          "component.repo_env_context"
+        ]
+      },
+      {
+        "id": "claim.repo_context_git_detection",
+        "kind": "fact",
+        "text": "Repo context detection shells out to Git for the repo root, origin remote URL, and origin HEAD default branch, with local:<repoRoot> and main fallbacks when remote metadata is absent.",
+        "truth": "code_verified",
+        "intent": "intended",
+        "about": [
+          "component.repo_env_context",
+          "flow.doctor_and_init"
+        ]
+      },
+      {
+        "id": "claim.env_loading_openai_key_precedence",
+        "kind": "fact",
+        "text": "Repo env loading only imports allowed repo-local keys such as OPENAI_API_KEY from .env.local and .env, without overriding a key that was already present in the process environment.",
+        "truth": "code_verified",
+        "intent": "intended",
+        "about": [
+          "component.repo_env_context",
+          "flow.doctor_and_init"
+        ]
+      },
+      {
+        "id": "claim.doctor_initializes_and_checks_openai",
+        "kind": "fact",
+        "text": "The doctor command initializes repo memory state, reports the database and main/working scopes, reports whether OPENAI_API_KEY is available, and optionally checks OpenAI embeddings with --check-openai.",
+        "truth": "code_verified",
+        "intent": "intended",
+        "about": [
+          "flow.doctor_and_init",
+          "component.cli_app",
+          "component.graph_context_retrieval"
+        ]
+      },
+      {
+        "id": "claim.database_home_precedence",
+        "kind": "fact",
+        "text": "The SQLite database path prefers GREPLICA_HOME, then ENGINEERING_CONTEXT_HOME, and otherwise defaults to ~/.greplica/graph.db; opening the database enables foreign keys and runs the schema migration.",
+        "truth": "code_verified",
+        "intent": "intended",
+        "about": [
+          "component.sqlite_database_schema",
+          "flow.doctor_and_init"
+        ]
+      },
+      {
+        "id": "claim.service_boundary_operations",
+        "kind": "fact",
+        "text": "KnowledgeGraphService is the local service boundary for repo initialization, graph reads, graph context search, proposal validation, and proposal apply.",
+        "truth": "code_verified",
+        "intent": "intended",
+        "about": [
+          "component.knowledge_graph_service",
+          "component.cli_app"
+        ]
+      },
+      {
+        "id": "claim.graph_model_types_and_edges",
+        "kind": "fact",
+        "text": "The graph model has components, flows, claims, sources, edges, scopes, memberships, and memory commits; allowed edges include about, contains, touches, supersedes, and evidenced_by with direction rules in edge.ts.",
+        "truth": "code_verified",
+        "intent": "intended",
+        "about": [
+          "component.graph_schema",
+          "component.proposal_validation"
+        ]
+      },
+      {
+        "id": "claim.sqlite_repository_graph_view",
+        "kind": "fact",
+        "text": "The SQLite repository persists graph objects, memberships, memory commits, and embeddings, and readGraphView composes the current main plus working graph while hiding superseded subjects and inactive edges.",
+        "truth": "code_verified",
+        "intent": "intended",
+        "about": [
+          "component.sqlite_repository",
+          "component.sqlite_database_schema",
+          "flow.graph_read_and_context"
+        ]
+      },
+      {
+        "id": "claim.sources_are_edge_referenced",
+        "kind": "fact",
+        "text": "Source records are inserted separately from graph memberships and become visible in graph reads when active evidenced_by edges reference them.",
+        "truth": "code_verified",
+        "intent": "intended",
+        "about": [
+          "component.sqlite_repository",
+          "component.graph_schema"
+        ]
+      },
+      {
+        "id": "claim.compact_relationship_normalization",
+        "kind": "fact",
+        "text": "Proposal normalization strips compact relationship fields from created components, flows, and claims and expands contains, touches, about, evidenced_by, and supersedes into canonical edge records.",
+        "truth": "code_verified",
+        "intent": "intended",
+        "about": [
+          "component.proposal_model",
+          "flow.compact_relationships_to_edges"
+        ]
+      },
+      {
+        "id": "claim.proposal_validation_rules",
+        "kind": "fact",
+        "text": "Proposal validation checks top-level shape, duplicate and pre-existing IDs, claim/source enum values, referenced subjects, allowed edge directions, metadata shape, and evidenced_by metadata.reason.",
+        "truth": "code_verified",
+        "intent": "intended",
+        "about": [
+          "component.proposal_validation",
+          "component.graph_schema",
+          "flow.proposal_validation"
+        ]
+      },
+      {
+        "id": "claim.apply_creates_working_commit_and_embeddings",
+        "kind": "fact",
+        "text": "Applying a proposal normalizes and validates it, creates a memory commit in the working scope, writes proposal records through the repository, and ensures embeddings for the resulting graph objects.",
+        "truth": "code_verified",
+        "intent": "intended",
+        "about": [
+          "flow.proposal_apply",
+          "component.knowledge_graph_service",
+          "component.sqlite_repository",
+          "component.graph_context_retrieval"
+        ]
+      },
+      {
+        "id": "claim.graph_context_ranking",
+        "kind": "fact",
+        "text": "Graph context retrieval builds documents for claims, components, and flows, embeds them with text-embedding-3-small, combines semantic, BM25, and exact scores, and applies graph boosts and claim support when selecting results.",
+        "truth": "code_verified",
+        "intent": "intended",
+        "about": [
+          "component.graph_context_retrieval",
+          "flow.graph_read_and_context"
+        ]
+      },
+      {
+        "id": "claim.openai_embeddings_required_for_context",
+        "kind": "requirement",
+        "text": "Graph context search and proposal apply require OPENAI_API_KEY because the OpenAI embedder throws when no API key is available and stores graph-object embeddings for retrieval.",
+        "truth": "code_verified",
+        "intent": "intended",
+        "about": [
+          "component.graph_context_retrieval",
+          "flow.graph_read_and_context",
+          "flow.proposal_apply"
+        ]
+      },
+      {
+        "id": "claim.skills_bootstrap_and_update_guidance",
+        "kind": "fact",
+        "text": "The bootstrap skill requires greplica doctor, shallow repository inspection, existing graph reading, compact proposal validation, and apply; the update skill requires git/session evidence and source-backed memory for durable session decisions.",
+        "truth": "code_verified",
+        "intent": "intended",
+        "about": [
+          "component.greplica_skills",
+          "flow.greplica_skill_workflows"
+        ]
+      },
+      {
+        "id": "claim.evals_isolated_runs",
+        "kind": "fact",
+        "text": "Eval cases clone target repos into per-run directories, use isolated GREPLICA_HOME locations, run product CLI commands, and score bootstrap, search, and update-working-memory behavior against rubrics.",
+        "truth": "code_verified",
+        "intent": "intended",
+        "about": [
+          "component.evals_agent_runner",
+          "flow.eval_workflows"
+        ]
+      },
+      {
+        "id": "claim.codex_runner_boundary",
+        "kind": "fact",
+        "text": "The Codex agent runner launches codex exec with approval never and danger-full-access, streams JSON transcript output, writes the final message path, and collects coarse tool-call and token metrics from the transcript.",
+        "truth": "code_verified",
+        "intent": "intended",
+        "about": [
+          "component.evals_agent_runner",
+          "flow.eval_workflows"
+        ]
+      },
+      {
+        "id": "claim.schema_migration_strategy_risk",
+        "kind": "risk",
+        "text": "SQLite migration currently executes a CREATE TABLE IF NOT EXISTS schema; incompatible future schema changes will need an explicit migration strategy beyond the current bootstrap-style migration.",
+        "truth": "code_verified",
+        "intent": "unknown",
+        "about": [
+          "component.sqlite_database_schema"
+        ]
+      }
+    ],
+    "sources": [],
+    "edges": []
+  }
+}

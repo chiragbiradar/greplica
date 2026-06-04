@@ -113,10 +113,12 @@ Memory is stored in `~/.greplica/graph.db` by default. Set `GREPLICA_HOME` only 
 ```bash
 greplica doctor [--check-openai]
 greplica graph read
-greplica graph context "<query>"
+greplica graph context "<query>" [--json|--debug]
 greplica proposal validate <proposal.json>
 greplica proposal apply <proposal.json>
 ```
+
+`greplica graph context "<query>"` prints concise Markdown for coding-agent use. Use `--json` for compact structured output, or `--debug` for the full retrieval payload with ranking signals and embedding status.
 
 `greplica` automatically prepares repo memory state when commands run, so users should not need a separate init step.
 

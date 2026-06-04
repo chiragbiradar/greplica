@@ -1,0 +1,135 @@
+{
+  "title": "Update working memory from eval-design session",
+  "summary": "Durable decisions from the June 4 eval-design discussion.",
+  "creates": {
+    "claims": [
+      {
+        "id": "claim.eval_benchmark_primary_metric_correctness_per_cost",
+        "kind": "decision",
+        "text": "The planned Greplica coding-task benchmark should use correctness-per-cost as its primary metric, measuring final correctness together with token spend and elapsed time.",
+        "truth": "source_verified",
+        "intent": "intended",
+        "about": [
+          "component.evals_agent_runner",
+          "flow.eval_workflows"
+        ]
+      },
+      {
+        "id": "claim.eval_compare_real_greplica_experience_to_control",
+        "kind": "decision",
+        "text": "The first correctness-per-cost eval should compare the real Greplica user experience against no Greplica: the Greplica arm gets memory plus the normal workflow and skills, while the control arm keeps the same model, repo state, task, sandbox, and normal code-inspection tools without Greplica.",
+        "truth": "source_verified",
+        "intent": "intended",
+        "about": [
+          "component.evals_agent_runner",
+          "component.greplica_skills",
+          "flow.eval_workflows",
+          "flow.greplica_skill_workflows"
+        ]
+      },
+      {
+        "id": "claim.eval_first_family_should_be_coding_tasks",
+        "kind": "decision",
+        "text": "The first Greplica correctness-per-cost eval family should use coding tasks rather than repo QA, retrieval-only tasks, or memory-update tasks; those other task families can be added separately later.",
+        "truth": "source_verified",
+        "intent": "intended",
+        "about": [
+          "component.evals_agent_runner",
+          "flow.eval_workflows"
+        ]
+      },
+      {
+        "id": "claim.eval_coding_task_must_be_real_work",
+        "kind": "requirement",
+        "text": "Coding tasks for the benchmark should come from real intended repo work or bug fixes with settled desired behavior, not invented speculative features created only to make the eval task larger.",
+        "truth": "source_verified",
+        "intent": "intended",
+        "about": [
+          "component.evals_agent_runner",
+          "flow.eval_workflows"
+        ]
+      },
+      {
+        "id": "claim.eval_task_selection_deferred_until_real_commits",
+        "kind": "task",
+        "text": "Defer choosing the first concrete Greplica correctness-per-cost coding task until more real product work has landed; then use a parent commit as the base, the issue or implementation intent as the prompt, and the final commit plus hidden checks as the oracle.",
+        "truth": "source_verified",
+        "intent": "intended",
+        "about": [
+          "component.evals_agent_runner",
+          "flow.eval_workflows"
+        ]
+      },
+      {
+        "id": "claim.greplica_graph_context_current_value_standard",
+        "kind": "decision",
+        "text": "The user accepted Greplica graph context as useful when it accelerates repo orientation and surfaces historical session context, while still requiring normal code inspection before implementation.",
+        "truth": "source_verified",
+        "intent": "intended",
+        "about": [
+          "component.graph_context_retrieval",
+          "component.greplica_skills",
+          "flow.graph_read_and_context"
+        ]
+      }
+    ],
+    "sources": [
+      {
+        "id": "source.codex_session.2026_06_04_eval_design_grilling",
+        "kind": "session",
+        "ref": "codex-session:2026-06-04-eval-design-grilling",
+        "title": "Codex session on Greplica correctness-per-cost eval design"
+      }
+    ],
+    "edges": [
+      {
+        "kind": "evidenced_by",
+        "from": "claim.eval_benchmark_primary_metric_correctness_per_cost",
+        "to": "source.codex_session.2026_06_04_eval_design_grilling",
+        "metadata": {
+          "reason": "The user confirmed that correctness-per-cost, including tokens and time, is the primary metric for the proposed eval."
+        }
+      },
+      {
+        "kind": "evidenced_by",
+        "from": "claim.eval_compare_real_greplica_experience_to_control",
+        "to": "source.codex_session.2026_06_04_eval_design_grilling",
+        "metadata": {
+          "reason": "The user confirmed the eval should compare the real Greplica user experience against no Greplica, with everything else held constant and no ablation for the first version."
+        }
+      },
+      {
+        "kind": "evidenced_by",
+        "from": "claim.eval_first_family_should_be_coding_tasks",
+        "to": "source.codex_session.2026_06_04_eval_design_grilling",
+        "metadata": {
+          "reason": "The user agreed the first eval should be a coding task rather than repo QA or other task families."
+        }
+      },
+      {
+        "kind": "evidenced_by",
+        "from": "claim.eval_coding_task_must_be_real_work",
+        "to": "source.codex_session.2026_06_04_eval_design_grilling",
+        "metadata": {
+          "reason": "The user rejected invented task ideas and said the benchmark task should be real work such as a future repo task or bug fix with decided behavior."
+        }
+      },
+      {
+        "kind": "evidenced_by",
+        "from": "claim.eval_task_selection_deferred_until_real_commits",
+        "to": "source.codex_session.2026_06_04_eval_design_grilling",
+        "metadata": {
+          "reason": "The user decided to defer choosing the exact eval task until after more real product work and commits create a suitable task candidate."
+        }
+      },
+      {
+        "kind": "evidenced_by",
+        "from": "claim.greplica_graph_context_current_value_standard",
+        "to": "source.codex_session.2026_06_04_eval_design_grilling",
+        "metadata": {
+          "reason": "The user accepted the assessment that Greplica graph context is doing its job when it saves orientation time and surfaces prior context, while not replacing code inspection."
+        }
+      }
+    ]
+  }
+}

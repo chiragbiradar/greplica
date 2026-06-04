@@ -1,0 +1,89 @@
+{
+  "title": "Update working memory from transcript eval scoring session",
+  "summary": "Durable context from improving the update-working-memory transcript ingestion eval and committing PR #9.",
+  "creates": {
+    "components": [],
+    "flows": [],
+    "claims": [
+      {
+        "id": "claim.update_memory_eval_scores_supersedes_structurally",
+        "kind": "fact",
+        "text": "The update-working-memory source-evidence eval now scores supersedes deterministically from the generated proposal structure, requiring either compact `supersedes[]` or an explicit supersedes edge instead of trusting the judge to infer supersession from wording.",
+        "truth": "code_verified",
+        "intent": "intended",
+        "about": [
+          "component.evals_agent_runner",
+          "flow.eval_workflows"
+        ],
+        "supersedes": [
+          "claim.transcript_replay_eval_keeps_only_replay_specific_prompting"
+        ]
+      },
+      {
+        "id": "claim.update_memory_skill_has_transcript_inventory_and_supersedes_workflow",
+        "kind": "fact",
+        "text": "The update-working-memory skill now requires transcript line counting, chunked full-transcript reading, a bucketed candidate inventory, dropped-candidate review, distinct focused claims, and an explicit final supersedes pass for older broad memory that is narrowed or corrected by new session claims.",
+        "truth": "code_verified",
+        "intent": "intended",
+        "about": [
+          "component.greplica_skills",
+          "flow.greplica_skill_workflows"
+        ],
+        "supersedes": [
+          "claim.update_memory_skill_requires_full_transcript_scan",
+          "claim.update_memory_candidate_inventory_followup"
+        ]
+      },
+      {
+        "id": "claim.update_memory_transcript_eval_remains_prompt_sensitive",
+        "kind": "risk",
+        "text": "The prompt-only update-memory transcript workflow remains sensitive to agent model and exploration path: GPT-5.5 generated a more complete proposal than GPT-5.4-mini, while repeated GPT-5.4-mini runs over-pruned transcript memories and missed session-only constraints, future work, or eval-process constraints.",
+        "truth": "source_verified",
+        "intent": "intended",
+        "about": [
+          "component.evals_agent_runner",
+          "component.greplica_skills",
+          "flow.eval_workflows",
+          "flow.greplica_skill_workflows"
+        ]
+      },
+      {
+        "id": "claim.code_based_memory_update_workflow_followup",
+        "kind": "task",
+        "text": "Replace the prompt-only update-memory extraction workflow with a more code-driven workflow for memory updates so transcript candidate extraction, candidate dropping, and supersedes decisions are guided by deterministic steps rather than relying only on prompt compliance.",
+        "truth": "source_verified",
+        "intent": "intended",
+        "about": [
+          "component.greplica_skills",
+          "flow.greplica_skill_workflows"
+        ]
+      }
+    ],
+    "sources": [
+      {
+        "id": "source.codex_session.2026_06_03_eval_scoring_pr",
+        "kind": "session",
+        "ref": "codex-session:2026-06-03-eval-scoring-pr",
+        "title": "Codex session on transcript eval scoring and PR #9"
+      }
+    ],
+    "edges": [
+      {
+        "kind": "evidenced_by",
+        "from": "claim.update_memory_transcript_eval_remains_prompt_sensitive",
+        "to": "source.codex_session.2026_06_03_eval_scoring_pr",
+        "metadata": {
+          "reason": "The session compared GPT-5.5 and GPT-5.4-mini eval runs and found the prompt-only workflow produced materially different proposal quality across models and runs."
+        }
+      },
+      {
+        "kind": "evidenced_by",
+        "from": "claim.code_based_memory_update_workflow_followup",
+        "to": "source.codex_session.2026_06_03_eval_scoring_pr",
+        "metadata": {
+          "reason": "The user decided to defer further prompt tuning and later build a code-based workflow for updating memories."
+        }
+      }
+    ]
+  }
+}
