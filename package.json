@@ -1,8 +1,12 @@
 {
   "name": "greplica",
-  "version": "0.0.0",
-  "private": true,
+  "version": "0.1.0",
+  "private": false,
   "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "git+ssh://git@github.com/Autoloops/greplica.git"
+  },
   "bin": {
     "greplica": "dist/apps/cli/main.js"
   },
@@ -16,7 +20,8 @@
     "eval:update-working-memory-source-evidence": "npm run build && node dist/evals/cases/update-working-memory-source-evidence-at-0438915/run.js"
   },
   "files": [
-    "dist",
+    "dist/apps",
+    "dist/libs",
     "skills",
     "README.md"
   ],

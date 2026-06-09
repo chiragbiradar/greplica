@@ -17,113 +17,38 @@ Copy this prompt into the coding agent from the repository you want to use with 
 `````txt
 Install Greplica for this repo.
 
-Goal:
-- Install the `greplica` CLI from the Greplica GitHub repo.
-- Install the bundled Greplica skills into this coding agent's user-level skills directory.
-- Add Greplica usage guidance to the project instruction location this coding agent actually reads.
-- Ask me whether to use local or OpenAI embeddings, then initialize Greplica with that choice.
-
-Use this repo unless I provide a different URL or branch:
-
-```txt
-git@github.com:Autoloops/greplica.git
-```
-
-Do the install in the way that fits this environment. Prefer a persistent source checkout so future updates do not need a fresh clone:
+First install the CLI from the Greplica repo. If the package has already been published, use:
 
 ```bash
-GREPLICA_SRC="${GREPLICA_SRC:-$HOME/.greplica/src/greplica}"
-if [ -d "$GREPLICA_SRC/.git" ]; then
-  git -C "$GREPLICA_SRC" fetch --prune origin
-  git -C "$GREPLICA_SRC" pull --ff-only
-else
-  mkdir -p "$(dirname "$GREPLICA_SRC")"
-  git clone --depth 1 git@github.com:Autoloops/greplica.git "$GREPLICA_SRC"
-fi
-npm install --prefix "$GREPLICA_SRC"
-npm install -g "$GREPLICA_SRC"
+npm install -g greplica
 ```
 
-`npm install --prefix "$GREPLICA_SRC"` runs Greplica's build through the package `prepare` script, so do not run a separate build unless troubleshooting.
-
-If global npm install is not allowed, use the agent's normal npm prefix/tool-install approach and make sure `greplica` is on PATH for future sessions. For an isolated npm prefix, use the equivalent of `npm install -g --prefix <prefix-dir> "$GREPLICA_SRC"` and add `<prefix-dir>/bin` to PATH.
-
-Install these two skill folders from the cloned repo:
-
-```txt
-$GREPLICA_SRC/skills/greplica-bootstrap
-$GREPLICA_SRC/skills/greplica-update-working-memory
-```
-
-Use the native skill install location for the coding agent:
-
-- Claude Code personal skills: `~/.claude/skills/<skill-name>/SKILL.md`
-- Claude Code project skills, only if I ask for repo-local install: `.claude/skills/<skill-name>/SKILL.md`
-- Codex personal skills: `${CODEX_HOME:-~/.codex}/skills/<skill-name>/SKILL.md`
-- Other SKILL.md-compatible agents: use their user-level skill directory.
-
-The installed directories should be named exactly:
-
-```txt
-greplica-bootstrap
-greplica-update-working-memory
-```
-
-Update this project's agent instruction location so future coding agents know how to use Greplica. Use the place this project and agent already use for durable agent guidance.
-
-Common examples are `AGENTS.md` for Codex and `CLAUDE.md` for Claude Code, but do not assume either file is correct for every environment. If an instruction file already exists, update that file. If multiple relevant instruction files exist, update each one that future agents in this project are expected to read. If no instruction location is clear, ask me where to save the block before creating a new file.
-
-Add or update this block:
-
-````md
-## Greplica
-
-When `greplica` is available, use it before broad manual exploration:
+Otherwise install the current checkout:
 
 ```bash
-greplica graph context "<natural-language question about the current task>"
+npm install -g <path-to-greplica>
 ```
 
-Use the returned claims, components, flows, and code anchors to decide which files to inspect next. Treat Greplica as navigation and prior context, not final truth: verify implementation facts against current files and diffs before editing.
+Then run exactly one of these commands.
 
-For large or unclear tasks, run 2-4 focused `greplica graph context` queries from different angles, such as the feature area, eval/test path, data model, and command/entrypoint. Avoid generic query spam.
-
-Do not run `greplica doctor` as a routine preflight. Run the intended Greplica command directly; use `doctor` only after a command fails and the failure suggests installation, target detection, or embedding-provider diagnosis would help.
-````
-
-Before running Greplica init, ask me whether to use local embeddings or OpenAI embeddings.
-
-Local is the default recommendation: it runs on this laptop without an API key and downloads the local embedding model into `~/.greplica/models`. OpenAI may be faster or higher quality, but requires `OPENAI_API_KEY`.
-
-If I choose local, use the default local config and initialize memory without pre-downloading the embedding model:
-
+Codex:
 ```bash
-greplica graph read >/dev/null
+greplica install --platform codex --instructions user --embedding local
 ```
 
-Do not run `greplica init --local` during setup unless I explicitly ask to pre-warm local embeddings. `greplica init --local` checks local embeddings and may download the model immediately; otherwise the model downloads on first `greplica graph context` or proposal apply.
-
-If I choose OpenAI, verify `OPENAI_API_KEY` is available in the environment, the target root's `.env.local`, or the target root's `.env`, then run:
-
+Claude Code:
 ```bash
-greplica init --openai
+greplica install --platform claude --instructions user --embedding local
 ```
 
-If OpenAI is selected and `OPENAI_API_KEY` is missing or invalid, stop and ask me to set it. Do not ask me to paste the key into chat. I can set it either in my shell before starting the coding agent, or in the target root's `.env.local` file:
+Do not manually copy skills or edit instruction files. Let the installer do it.
 
-```txt
-OPENAI_API_KEY=...
-```
+After installation, tell me where the skills were installed, which user instruction file was updated, which embedding mode was configured, and whether I should restart the agent.
 
-After setup, tell me:
-- where the Greplica source checkout is
-- where the CLI was installed
-- where the two skills were installed
-- which project instruction file or location was updated
-- which embedding mode was selected
-- where the Greplica config file is
-- whether I need to restart the coding agent for skills to appear
-- how to invoke `greplica-bootstrap` and `greplica-update-working-memory`
+Then tell me how to use Greplica:
+- Run "Use greplica-bootstrap for this repo." once per repo to initialize memory.
+- During work, the agent will use `greplica graph context "<question>"` when it needs repo context that is not already in the conversation.
+- Near the end of useful sessions, run "Use greplica-update-working-memory for this session." to save decisions, constraints, changed flows, and follow-up work.
 `````
 
 ## Using Greplica

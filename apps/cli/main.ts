@@ -16,6 +16,8 @@ import { graphContextConfigFromGreplicaConfig } from "../../libs/knowledge-graph
 import { createEmbedder } from "../../libs/knowledge-graph/graph-context/embedder.js";
 import { compactGraphContextResult, renderGraphContextMarkdown } from "../../libs/knowledge-graph/graph-context/render.js";
 import { buildGraphFolderExport } from "../../libs/knowledge-graph/folder-export.js";
+import { installGreplica } from "../../libs/install/install.js";
+import type { InstallEmbedding, InstallPlatform, InstructionScope } from "../../libs/install/paths.js";
 import { detectRepoContext } from "./repo-context.js";
 
 interface CommandContext {
@@ -27,6 +29,16 @@ interface CommandContext {
 
 async function main(argv: string[]): Promise<void> {
   const [area, action, ...rest] = argv;
+
+  if (area === "install") {
+    const options = parseInstallArgs([action, ...rest].filter((arg): arg is string => arg !== undefined));
+    const result = await installGreplica({
+      ...options,
+      repo: detectRepoContext(),
+    });
+    printInstallResult(result);
+    return;
+  }
 
   if (area === "init") {
     const initArgs = [action, ...rest].filter((arg): arg is string => arg !== undefined);
@@ -248,6 +260,100 @@ function parseOptionalEmbeddingSelection(args: string[]): EmbeddingProvider | un
   return local ? "local" : "openai";
 }
 
+function parseInstallArgs(args: string[]): { platform: InstallPlatform; instructions: InstructionScope; embedding: InstallEmbedding } {
+  let platform: InstallPlatform | undefined;
+  let instructions: InstructionScope | undefined;
+  let embedding: InstallEmbedding | undefined;
+
+  for (let index = 0; index < args.length; index += 1) {
+    const arg = args[index];
+    if (arg === "--platform") {
+      if (platform !== undefined) throw new Error(`Specify --platform only once.\n${installUsage()}`);
+      platform = parseInstallPlatform(requireFlagValue(args, index, "--platform"));
+      index += 1;
+      continue;
+    }
+    if (arg.startsWith("--platform=")) {
+      if (platform !== undefined) throw new Error(`Specify --platform only once.\n${installUsage()}`);
+      platform = parseInstallPlatform(arg.slice("--platform=".length));
+      continue;
+    }
+    if (arg === "--instructions") {
+      if (instructions !== undefined) throw new Error(`Specify --instructions only once.\n${installUsage()}`);
+      instructions = parseInstructionScope(requireFlagValue(args, index, "--instructions"));
+      index += 1;
+      continue;
+    }
+    if (arg.startsWith("--instructions=")) {
+      if (instructions !== undefined) throw new Error(`Specify --instructions only once.\n${installUsage()}`);
+      instructions = parseInstructionScope(arg.slice("--instructions=".length));
+      continue;
+    }
+    if (arg === "--embedding") {
+      if (embedding !== undefined) throw new Error(`Specify --embedding only once.\n${installUsage()}`);
+      embedding = parseInstallEmbedding(requireFlagValue(args, index, "--embedding"));
+      index += 1;
+      continue;
+    }
+    if (arg.startsWith("--embedding=")) {
+      if (embedding !== undefined) throw new Error(`Specify --embedding only once.\n${installUsage()}`);
+      embedding = parseInstallEmbedding(arg.slice("--embedding=".length));
+      continue;
+    }
+    throw new Error(installUsage());
+  }
+
+  if (platform === undefined || instructions === undefined || embedding === undefined) throw new Error(installUsage());
+  return { platform, instructions, embedding };
+}
+
+function requireFlagValue(args: string[], index: number, flag: string): string {
+  const value = args[index + 1];
+  if (value === undefined || value.startsWith("--")) throw new Error(`Missing value for ${flag}.\n${installUsage()}`);
+  return value;
+}
+
+function parseInstallPlatform(value: string): InstallPlatform {
+  if (value === "codex" || value === "claude") return value;
+  throw new Error(`Invalid --platform ${value}.\n${installUsage()}`);
+}
+
+function parseInstructionScope(value: string): InstructionScope {
+  if (value === "user" || value === "project" || value === "none") return value;
+  throw new Error(`Invalid --instructions ${value}.\n${installUsage()}`);
+}
+
+function parseInstallEmbedding(value: string): InstallEmbedding {
+  if (value === "local" || value === "openai") return value;
+  throw new Error(`Invalid --embedding ${value}.\n${installUsage()}`);
+}
+
+function printInstallResult(result: Awaited<ReturnType<typeof installGreplica>>): void {
+  console.log(`Installed Greplica for ${result.platform === "codex" ? "Codex" : "Claude Code"}.`);
+  console.log("");
+  console.log("Skills:");
+  for (const skill of result.skills) console.log(`- ${skill}`);
+  console.log("");
+  console.log("Instructions:");
+  console.log(result.instructionFile === undefined ? "- not updated (--instructions none)" : `- ${result.instructionFile} updated`);
+  console.log("");
+  console.log("Embedding:");
+  console.log(`- ${result.embedding}`);
+  console.log(`- config: ${result.configFile}`);
+  console.log(`- database: ${result.databasePath}`);
+  console.log("");
+  console.log("Next:");
+  console.log("- Use greplica-bootstrap once per repo to initialize memory.");
+  console.log("- During work, use greplica graph context \"<question>\" when repo context is not already in the conversation.");
+  console.log("- Near the end of useful sessions, use greplica-update-working-memory to save decisions, constraints, changed flows, and follow-up work.");
+  for (const note of result.notes) console.log(`- ${note}`);
+}
+
+function installUsage(): string {
+  const cli = basename(process.argv[1] ?? "greplica");
+  return `Usage: ${cli} install --platform codex|claude --instructions user|project|none --embedding local|openai`;
+}
+
 function printEmbeddingConfig(config: EmbeddingConfig): void {
   console.log(`Embedding provider: ${config.provider}`);
   console.log(`Embedding model: ${config.model}`);
@@ -310,6 +416,7 @@ function field(item: object, key: string): string {
 function printHelp(): void {
   const cli = basename(process.argv[1] ?? "greplica");
   console.log(`Usage:
+  ${cli} install --platform codex|claude --instructions user|project|none --embedding local|openai
   ${cli} init [--local|--openai]
   ${cli} config
   ${cli} doctor [--check-embeddings]
