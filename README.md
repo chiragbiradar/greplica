@@ -150,13 +150,13 @@ The search eval scores `greplica graph context` retrieval with `Precision@10`, `
 | `nDCG@10` | `0.802` |
 | `GradeRecall@10` | `0.828` |
 
-Broader context-retrieval benchmarking, including HW context benchmark work, is ongoing and showing promising early results. We will publish those numbers when the harness and methodology are stable enough to compare fairly.
+Broader context-retrieval benchmarking, including SWE-Context benchmark work, is ongoing and showing promising early results. We will publish those numbers when the harness and methodology are stable enough to compare fairly.
 
 ## Roadmap
 
 - Codex and Claude Code plugins so Greplica can be installed and used as a first-class agent integration.
 - Review UX for memory updates before the agent applies them.
-- HW context benchmark coverage and sharper retrieval evals for real coding tasks.
+- SWE-Context benchmark coverage and sharper retrieval evals for real coding tasks.
 
 ## Commands
 
