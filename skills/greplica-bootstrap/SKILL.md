@@ -1,24 +1,24 @@
 ---
 name: greplica-bootstrap
-description: Bootstrap Greplica memory for the current repository. Use only when the user explicitly invokes greplica-bootstrap or asks to create initial engineering memory for a repo with the greplica CLI.
+description: Bootstrap Greplica memory for the current repository or folder. Use only when the user explicitly invokes greplica-bootstrap or asks to create initial engineering memory with the greplica CLI.
 disable-model-invocation: true
 ---
 
 # Bootstrap Greplica Memory
 
-Create shallow, high-signal Greplica memory for the current repository.
+Create shallow, high-signal Greplica memory for the current repository or folder.
 
 ## Preconditions
 
-Run from the target repository root or any subdirectory inside it.
+Run from the target repository root, a subdirectory inside it, or a non-Git folder that should have its own memory.
 
-Do not run `greplica doctor` as a routine preflight. Run the needed Greplica commands directly; if one fails, use the error to decide whether `greplica doctor` would help diagnose installation, repo detection, or OpenAI configuration.
+Do not run `greplica doctor` as a routine preflight. Run the needed Greplica commands directly; if one fails, use the error to decide whether `greplica doctor` would help diagnose installation, target detection, or embedding-provider configuration.
 
 If `greplica` is missing, tell the user to run the Greplica setup prompt from the README.
 
-If a Greplica command reports that `OPENAI_API_KEY` is missing, stop. Do not ask the user to paste the key into chat. Tell them to set it in their shell before launching the coding agent, or in repo-root `.env.local`.
+Local embeddings are the default and do not require `OPENAI_API_KEY`. If Greplica is configured for OpenAI and a command reports that `OPENAI_API_KEY` is missing, stop. Do not ask the user to paste the key into chat. Tell them to set it in their shell before launching the coding agent, or in target-root `.env.local`.
 
-`greplica` automatically prepares repo memory state; do not ask the user to run a separate initialization command.
+`greplica` automatically prepares memory state; do not ask the user to run a separate initialization command.
 
 ## Inspect The Repo Shallowly
 
@@ -102,7 +102,7 @@ Sources currently represent session artifacts. Do not create a source just becau
 - Prefer roughly 4-10 major components for a small repo.
 - Include major flows that help future agents decide where to look.
 - Include claims that capture why the main modules matter, not just which commands exist.
-- Capture boundary facts such as thin CLI wrappers, service boundaries, git-based repo detection, global source storage, and shallow bootstrap guidance when the inspected code or skill files support them.
+- Capture boundary facts such as thin CLI wrappers, service boundaries, target detection, global source storage, and shallow bootstrap guidance when the inspected code or skill files support them.
 - Use `code_verified` only for claims grounded in inspected code.
 - Use `unknown` truth for unverified questions, risks, or tasks.
 - Add open questions/tasks for important areas that need deeper inspection.

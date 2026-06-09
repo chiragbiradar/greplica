@@ -43,7 +43,8 @@ async function main(argv: string[]): Promise<void> {
     const result = service.initRepo(repo);
     console.log(result.created ? "Initialized Greplica memory." : "Greplica memory already initialized.");
     console.log(`Repo: ${repo.repo_name}`);
-    console.log(`Remote: ${repo.remote_url}`);
+    console.log(`Repo root: ${repo.repo_root ?? ""}`);
+    console.log(`Remote: ${repo.remote_url ?? "none"}`);
     console.log(`Default branch: ${repo.default_branch}`);
     console.log(`Database: ${result.database_path}`);
     console.log(`Main scope: ${result.main_scope_id}`);
@@ -163,7 +164,7 @@ async function runDoctor(args: string[]): Promise<void> {
   console.log("Greplica doctor");
   console.log(`Repo: ${context.repo.repo_name}`);
   console.log(`Repo root: ${context.repo.repo_root ?? ""}`);
-  console.log(`Remote: ${context.repo.remote_url}`);
+  console.log(`Remote: ${context.repo.remote_url ?? "none"}`);
   console.log(`Default branch: ${context.repo.default_branch}`);
 
   try {
@@ -186,7 +187,7 @@ async function runDoctor(args: string[]): Promise<void> {
     if (source === undefined) {
       ready = false;
       console.log("OPENAI_API_KEY: missing");
-      console.log("Set OPENAI_API_KEY in the shell, repo-root .env.local, or repo-root .env.");
+      console.log("Set OPENAI_API_KEY in the shell, target-root .env.local, or target-root .env.");
     } else if (source.kind === "environment") {
       console.log("OPENAI_API_KEY: found in environment");
     } else {

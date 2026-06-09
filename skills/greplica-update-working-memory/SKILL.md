@@ -10,15 +10,15 @@ Update working memory with durable information learned during this coding sessio
 
 ## Preconditions
 
-Run from the target repository root or any subdirectory inside it.
+Run from the target repository root, a subdirectory inside it, or a non-Git folder that should have its own memory.
 
-Do not run `greplica doctor` as a routine preflight. Run the needed Greplica commands directly; if one fails, use the error to decide whether `greplica doctor` would help diagnose installation, repo detection, or OpenAI configuration.
+Do not run `greplica doctor` as a routine preflight. Run the needed Greplica commands directly; if one fails, use the error to decide whether `greplica doctor` would help diagnose installation, target detection, or embedding-provider configuration.
 
 If `greplica` is missing, tell the user to run the Greplica setup prompt from the README.
 
-If a Greplica command reports that `OPENAI_API_KEY` is missing, stop. Do not ask the user to paste the key into chat. Tell them to set it in their shell before launching the coding agent, or in repo-root `.env.local`.
+Local embeddings are the default and do not require `OPENAI_API_KEY`. If Greplica is configured for OpenAI and a command reports that `OPENAI_API_KEY` is missing, stop. Do not ask the user to paste the key into chat. Tell them to set it in their shell before launching the coding agent, or in target-root `.env.local`.
 
-`greplica` automatically prepares repo memory state; do not ask the user to run a separate initialization command.
+`greplica` automatically prepares memory state; do not ask the user to run a separate initialization command.
 
 ## Gather Evidence
 

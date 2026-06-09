@@ -1,7 +1,8 @@
 export const schemaSql = `
 CREATE TABLE IF NOT EXISTS repos (
   id TEXT PRIMARY KEY,
-  remote_url TEXT NOT NULL UNIQUE,
+  remote_url TEXT UNIQUE,
+  root_path TEXT UNIQUE,
   repo_name TEXT NOT NULL,
   default_branch TEXT NOT NULL
 );

@@ -9,13 +9,15 @@ import type { GraphScope, GraphScopeKind } from "../../knowledge-graph/scope.js"
 
 export interface RepoRecord {
   id: string;
-  remote_url: string;
+  remote_url: string | null;
+  root_path: string | null;
   repo_name: string;
   default_branch: string;
 }
 
 export interface UpsertRepoInput {
-  remote_url: string;
+  repo_root?: string;
+  remote_url?: string;
   repo_name: string;
   default_branch: string;
 }
@@ -41,6 +43,7 @@ type MembershipRow = {
 };
 
 type EdgeRow = Omit<Edge, "metadata"> & { metadata: string | null };
+type RepoMatch = { repo: RepoRecord; matchedBy: "remote" | "root" };
 
 export type EmbeddingObjectType = "claim" | "component" | "flow";
 
@@ -69,20 +72,21 @@ export class SqliteRepository {
   constructor(private readonly db: Database.Database) {}
 
   upsertRepo(input: UpsertRepoInput): { repo: RepoRecord; created: boolean } {
-    const existing = this.getRepoByRemote(input.remote_url);
-    if (existing) return { repo: existing, created: false };
+    const existing = this.findRepo(input);
+    if (existing) return { repo: this.updateRepo(existing.repo, input, existing.matchedBy), created: false };
 
     const repo: RepoRecord = {
-      id: makeId("repo", input.remote_url),
-      remote_url: input.remote_url,
+      id: makeId("repo", identityKey(input)),
+      remote_url: input.remote_url ?? null,
+      root_path: input.repo_root ?? null,
       repo_name: input.repo_name,
       default_branch: input.default_branch,
     };
 
     this.db
       .prepare(
-        `INSERT INTO repos (id, remote_url, repo_name, default_branch)
-         VALUES (@id, @remote_url, @repo_name, @default_branch)`,
+        `INSERT INTO repos (id, remote_url, root_path, repo_name, default_branch)
+         VALUES (@id, @remote_url, @root_path, @repo_name, @default_branch)`,
       )
       .run(repo);
 
@@ -93,11 +97,54 @@ export class SqliteRepository {
     return this.db.prepare("SELECT * FROM repos WHERE remote_url = ?").get(remoteUrl) as RepoRecord | undefined;
   }
 
+  getRepoByRootPath(rootPath: string): RepoRecord | undefined {
+    return this.db.prepare("SELECT * FROM repos WHERE root_path = ?").get(rootPath) as RepoRecord | undefined;
+  }
+
   requireRepo(remoteUrl: string): RepoRecord {
     const repo = this.getRepoByRemote(remoteUrl);
     if (!repo) {
       throw new Error(`Repo memory is not ready for ${remoteUrl}. Run 'greplica doctor' to diagnose setup.`);
     }
+    return repo;
+  }
+
+  private findRepo(input: UpsertRepoInput): RepoMatch | undefined {
+    if (input.remote_url !== undefined) {
+      const byRemote = this.getRepoByRemote(input.remote_url);
+      if (byRemote !== undefined) return { repo: byRemote, matchedBy: "remote" };
+    }
+    if (input.repo_root !== undefined) {
+      for (const rootPath of rootPathCandidates(input.repo_root)) {
+        const byRootPath = this.getRepoByRootPath(rootPath);
+        if (byRootPath !== undefined) return { repo: byRootPath, matchedBy: "root" };
+      }
+    }
+    return undefined;
+  }
+
+  private updateRepo(existing: RepoRecord, input: UpsertRepoInput, matchedBy: RepoMatch["matchedBy"]): RepoRecord {
+    const shouldUpdateRootPath =
+      matchedBy === "root" || existing.root_path === null || existing.root_path === input.repo_root;
+    const repo: RepoRecord = {
+      id: existing.id,
+      remote_url: input.remote_url ?? existing.remote_url,
+      root_path: shouldUpdateRootPath ? (input.repo_root ?? existing.root_path) : existing.root_path,
+      repo_name: input.repo_name,
+      default_branch: input.default_branch,
+    };
+
+    this.db
+      .prepare(
+        `UPDATE repos
+         SET remote_url = @remote_url,
+             root_path = @root_path,
+             repo_name = @repo_name,
+             default_branch = @default_branch
+         WHERE id = @id`,
+      )
+      .run(repo);
+
     return repo;
   }
 
@@ -382,6 +429,19 @@ function tableForType(type: GraphObjectType): string {
 function makeId(prefix: string, value: string): string {
   const hash = createHash("sha1").update(value).digest("hex").slice(0, 16);
   return `${prefix}_${hash}`;
+}
+
+function identityKey(input: UpsertRepoInput): string {
+  if (input.remote_url !== undefined) return input.remote_url;
+  if (input.repo_root !== undefined) return `root:${input.repo_root}`;
+  throw new Error("Repo memory needs either a remote URL or a root path.");
+}
+
+function rootPathCandidates(rootPath: string): string[] {
+  const candidates = [rootPath];
+  if (rootPath.startsWith("/private/var/")) candidates.push(rootPath.slice("/private".length));
+  if (rootPath.startsWith("/var/")) candidates.push(`/private${rootPath}`);
+  return candidates;
 }
 
 function now(): string {

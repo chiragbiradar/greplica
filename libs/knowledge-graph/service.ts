@@ -14,7 +14,7 @@ export type { GraphContextResult } from "./graph-context/types.js";
 
 export interface RepoRef {
   repo_root?: string;
-  remote_url: string;
+  remote_url?: string;
   repo_name: string;
   default_branch: string;
 }

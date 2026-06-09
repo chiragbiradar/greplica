@@ -16,7 +16,7 @@ export class OpenAIEmbedder {
   constructor(private readonly options: OpenAIEmbedderOptions) {
     const apiKey = (options.apiKey ?? process.env.OPENAI_API_KEY)?.trim();
     if (!apiKey) {
-      throw new Error("OPENAI_API_KEY is required for graph context embeddings. Set it in the environment, repo-root .env.local, or repo-root .env.");
+      throw new Error("OPENAI_API_KEY is required for graph context embeddings. Set it in the environment, target-root .env.local, or target-root .env.");
     }
     this.apiKey = apiKey;
   }
