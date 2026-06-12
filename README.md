@@ -1,5 +1,7 @@
 <div align="center">
 
+<img alt="Greplica logo" src="docs/assets/greplica-logo.svg" width="140">
+
 # Greplica
 
 ### Long-term, searchable `AGENTS.md` for coding agents
@@ -9,6 +11,7 @@
   <img alt="Agents" src="https://img.shields.io/badge/agents-Codex%20%7C%20Claude%20Code-2563eb">
   <img alt="Storage" src="https://img.shields.io/badge/storage-local%20SQLite-475569">
   <img alt="Embeddings" src="https://img.shields.io/badge/embeddings-local%20%7C%20OpenAI-16a34a">
+  <a href="https://discord.gg/q2R6AYXh9"><img alt="Discord" src="https://img.shields.io/badge/discord-join-5865F2"></a>
 </p>
 
 Keep `AGENTS.md` small. Put the rest of the agent's repo memory in Greplica.

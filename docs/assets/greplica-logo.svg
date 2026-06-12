@@ -1,0 +1,13 @@
+<svg width="320" height="320" viewBox="0 0 320 320" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">Greplica logo</title>
+  <desc id="desc">A refined all-black split-ledger mark representing mirrored repository memory.</desc>
+  <path d="M150 76H112C94.3269 76 80 90.3269 80 108V212C80 229.673 94.3269 244 112 244H150V76Z" stroke="#111111" stroke-width="10" stroke-linejoin="round"/>
+  <path d="M170 76H208C225.673 76 240 90.3269 240 108V212C240 229.673 225.673 244 208 244H170V76Z" stroke="#111111" stroke-width="10" stroke-linejoin="round"/>
+  <path d="M160 84V236" stroke="#111111" stroke-width="4" stroke-linecap="round"/>
+  <path d="M108 124H136" stroke="#111111" stroke-width="6.5" stroke-linecap="round"/>
+  <path d="M108 160H136" stroke="#111111" stroke-width="6.5" stroke-linecap="round"/>
+  <path d="M108 196H136" stroke="#111111" stroke-width="6.5" stroke-linecap="round"/>
+  <path d="M184 124H212" stroke="#111111" stroke-width="6.5" stroke-linecap="round"/>
+  <path d="M184 160H212" stroke="#111111" stroke-width="6.5" stroke-linecap="round"/>
+  <path d="M184 196H212" stroke="#111111" stroke-width="6.5" stroke-linecap="round"/>
+</svg>
