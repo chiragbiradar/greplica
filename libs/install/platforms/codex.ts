@@ -1,6 +1,5 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
-import { dirname, join } from "node:path";
+import { join } from "node:path";
 import { hookCommand, hookEvents, mergeHookConfig, readJsonObject, writeJson } from "../hook-config.js";
 import { copyBundledSkills } from "../skills.js";
 import { runCodexAgent } from "../../agent-runner/codex.js";
@@ -20,17 +19,15 @@ export const codexInstaller: PlatformInstaller = {
     const codexHome = process.env.CODEX_HOME ?? join(homedir(), ".codex");
     const skills = copyBundledSkills(join(codexHome, "skills"));
     const hookConfigPath = join(codexHome, "hooks.json");
-    const settingsPath = join(codexHome, "config.toml");
     const command = hookCommand("codex");
     const hookConfig = mergeHookConfig(readJsonObject(hookConfigPath), "codex", command);
     writeJson(hookConfigPath, hookConfig);
-    ensureCodexHooksEnabled(settingsPath);
 
     return {
       skills,
       hooks: {
         platform: "codex",
-        configFiles: [hookConfigPath, settingsPath],
+        configFiles: [hookConfigPath],
         events: [...hookEvents],
         command,
       },
@@ -80,25 +77,4 @@ function codexTranscriptToMarkdown(jsonl: string): string {
   }
 
   return renderSessionTranscriptMarkdown({ metadata, messages });
-}
-
-function ensureCodexHooksEnabled(path: string): void {
-  const content = existsSync(path) ? readFileSync(path, "utf8") : "";
-  const lines = content.length === 0 ? [] : content.split(/\r?\n/);
-  let found = false;
-  const updated = lines.map((line) => {
-    if (/^\s*codex_hooks\s*=/.test(line)) {
-      found = true;
-      return "codex_hooks = true";
-    }
-    return line;
-  });
-
-  if (!found) {
-    if (updated.length > 0 && updated[updated.length - 1] !== "") updated.push("");
-    updated.push("codex_hooks = true");
-  }
-
-  mkdirSync(dirname(path), { recursive: true });
-  writeFileSync(path, `${updated.join("\n").replace(/\n+$/, "")}\n`, "utf8");
 }
