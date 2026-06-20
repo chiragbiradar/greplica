@@ -33,6 +33,8 @@ Greplica keeps that deeper engineering context in local repo memory. Your agent 
 
 Most users should not install Greplica by hand. Paste this into your coding agent from inside the repo you want Greplica to remember:
 
+Greplica requires Node.js 22-26.
+
 `````txt
 Install Greplica for this repo.
 
