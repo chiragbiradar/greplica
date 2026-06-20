@@ -1,8 +1,9 @@
 #!/usr/bin/env node
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { isatty } from "node:tty";
 import { basename, dirname, join, resolve } from "node:path";
-import { createLocalKnowledgeGraphService } from "../../libs/knowledge-graph/service.js";
-import type { KnowledgeGraphService, RepoRef } from "../../libs/knowledge-graph/service.js";
+import { createLocalKnowledgeGraphService, KnowledgeGraphService } from "../../libs/knowledge-graph/service.js";
+import type { KnowledgeGraphService as KnowledgeGraphServiceType, RepoRef } from "../../libs/knowledge-graph/service.js";
 import { envVarSource, loadRepoEnv, type LoadedRepoEnv } from "../../libs/env/load-local-env.js";
 import {
   ensureGreplicaConfig,
@@ -18,13 +19,18 @@ import { compactGraphContextResult, renderGraphContextMarkdown } from "../../lib
 import { buildGraphFolderExport } from "../../libs/knowledge-graph/folder-export.js";
 import { installGreplica, platformDisplayName } from "../../libs/install/install.js";
 import type { InstallEmbedding, InstallPlatform } from "../../libs/install/paths.js";
+import { hookCwd, hookEventName, hookSessionId, hookTranscriptPath, readHookInput } from "../../libs/hooks/hook-input.js";
+import { HookSessionStore } from "../../libs/hooks/session-state.js";
+import { runHookWorker, startHookWorker } from "../../libs/hooks/worker.js";
+import { openDatabase } from "../../libs/storage/sqlite/db.js";
+import { SqliteRepository as SqliteKnowledgeGraphRepository } from "../../libs/storage/sqlite/repository.js";
 import { detectRepoContext } from "./repo-context.js";
 
 interface CommandContext {
   repo: RepoRef;
   env: LoadedRepoEnv;
   config: GreplicaConfig;
-  service: KnowledgeGraphService;
+  service: KnowledgeGraphServiceType;
 }
 
 async function main(argv: string[]): Promise<void> {
@@ -37,6 +43,16 @@ async function main(argv: string[]): Promise<void> {
       repo: detectRepoContext(),
     });
     printInstallResult(result);
+    return;
+  }
+
+  if (area === "hook" && action === "ingest") {
+    runHookIngest(rest);
+    return;
+  }
+
+  if (area === "hook" && action === "worker") {
+    await runHookWorker();
     return;
   }
 
@@ -159,6 +175,63 @@ function createCommandContext(): CommandContext {
   const config = ensureGreplicaConfig();
   const service = createLocalKnowledgeGraphService(graphContextConfigFromGreplicaConfig(config));
   return { repo, env, config, service };
+}
+
+function runHookIngest(args: string[]): void {
+  if (process.env.GREPLICA_HOOK_DISABLE === "1") return;
+
+  const platform = parseHookIngestPlatform(args);
+  const stdin = isatty(0) ? "" : readFileSync(0, "utf8");
+  const hook = readHookInput(stdin);
+  const eventName = hookEventName(hook);
+  const cwd = hookCwd(hook) ?? process.cwd();
+  const repo = detectRepoContext(cwd);
+  const db = openDatabase();
+  try {
+    const repository = new SqliteKnowledgeGraphRepository(db);
+    const service = new KnowledgeGraphService(repository);
+    const init = service.initRepo(repo);
+    const sessionStore = new HookSessionStore(db);
+    const result = sessionStore.recordHook({
+      platform,
+      repoId: init.repo_id,
+      sessionId: hookSessionId(hook),
+      transcriptPath: hookTranscriptPath(hook),
+      cwd,
+      eventName,
+    });
+    startHookWorker();
+
+    if (!result.shouldInjectGuidance) return;
+    const additionalContext =
+      `${greplicaContextMarker}: before broad manual exploration in this repository, use greplica graph context "<question>" to retrieve relevant repo memory.`;
+    console.log(
+      JSON.stringify({
+        hookSpecificOutput: {
+          hookEventName: "UserPromptSubmit",
+          additionalContext,
+        },
+      }),
+    );
+  } finally {
+    db.close();
+  }
+}
+
+const greplicaContextMarker = "Greplica hook guidance";
+
+function parseHookIngestPlatform(args: string[]): InstallPlatform {
+  for (let index = 0; index < args.length; index += 1) {
+    const arg = args[index];
+    if (arg === "--platform") return parseHookPlatform(args[index + 1]);
+    if (arg.startsWith("--platform=")) return parseHookPlatform(arg.slice("--platform=".length));
+  }
+  throw new Error("Usage: greplica hook ingest --platform codex|claude");
+}
+
+function parseHookPlatform(value: string | undefined): InstallPlatform {
+  if (value === "codex" || value === "claude") return value;
+  throw new Error("Usage: greplica hook ingest --platform codex|claude");
 }
 
 async function runDoctor(args: string[]): Promise<void> {
@@ -317,6 +390,13 @@ function printInstallResult(result: Awaited<ReturnType<typeof installGreplica>>)
   console.log("Skills:");
   for (const skill of result.skills) console.log(`- ${skill}`);
   console.log("");
+  if (result.hooks !== undefined) {
+    console.log("Hooks:");
+    console.log(`- events: ${result.hooks.events.join(", ")}`);
+    console.log(`- command: ${result.hooks.command}`);
+    for (const configFile of result.hooks.configFiles) console.log(`- config: ${configFile}`);
+    console.log("");
+  }
   console.log("Embedding:");
   console.log(`- ${result.embedding}`);
   console.log(`- config: ${result.configFile}`);
@@ -325,18 +405,14 @@ function printInstallResult(result: Awaited<ReturnType<typeof installGreplica>>)
   console.log("How to use Greplica:");
   console.log("- If this repo has not been initialized yet, ask your coding agent to run greplica-bootstrap for this repo. You only need to do this once per repo.");
   console.log("- After that, your coding agent can use greplica graph context \"<question>\" inside tasks to fetch relevant repo context, including prior working memory, before broad manual exploration.");
-  console.log("- Near the end of a useful session, ask your coding agent to run greplica-update-working-memory so decisions, changed flows, constraints, and follow-up work are stored.");
+  console.log("- Session hooks now record prompt and turn boundaries and attempt background working-memory updates.");
+  console.log("- You can still manually ask your coding agent to run greplica-update-working-memory near the end of an important session.");
   if (result.embedding === "local") {
     console.log(`- OpenAI embeddings are also available if you want better retrieval quality later: greplica install --platform ${result.platform} --embedding openai`);
   } else {
     console.log(`- Local embeddings are also available if you want to switch back later: greplica install --platform ${result.platform} --embedding local`);
   }
   for (const note of result.notes) console.log(`- ${note}`);
-  console.log(`- IMPORTANT: add the Greplica guidance block to ${platformGuidanceFile(result.platform)} yourself if you want the agent to keep using Greplica automatically.`);
-}
-
-function platformGuidanceFile(platform: InstallPlatform): string {
-  return platform === "claude" ? "CLAUDE.md" : "AGENTS.md";
 }
 
 function installUsage(): string {

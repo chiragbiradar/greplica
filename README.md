@@ -66,9 +66,9 @@ After installation, tell me where the skills were installed, which embedding mod
 Then tell me how to use Greplica:
 - If this repo has not been initialized yet, tell me to run "Use greplica-bootstrap for this repo." once. If repo memory already exists, do not run it again.
 - Tell me that during work, the agent can use `greplica graph context "<question>"` to fetch relevant repo context, including prior working memory, before broad manual exploration.
-- Tell me that near the end of a useful session, I should run "Use greplica-update-working-memory for this session." so decisions, changed flows, constraints, and follow-up work are stored.
+- Tell me that the installer also added lightweight session hooks that attempt background working-memory updates.
+- Tell me that I can still manually run "Use greplica-update-working-memory for this session." near the end of an important session.
 - Tell me that OpenAI embeddings are also available later by rerunning `greplica install --platform <codex-or-claude-or-opencode> --embedding openai`.
-- IMPORTANT: tell me to add the Greplica guidance block manually to AGENTS.md or CLAUDE.md if I want the agent to keep using Greplica automatically.
 `````
 
 After that, the normal workflow is:
