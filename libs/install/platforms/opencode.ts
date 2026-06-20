@@ -11,6 +11,12 @@ export const opencodeInstaller: PlatformInstaller = {
       skills: copyBundledSkills(join(configHome, "opencode", "skills")),
     };
   },
+  sessionSourceRef(_sessionId: string): string {
+    throw new Error("OpenCode session source refs are not supported yet.");
+  },
+  sessionIdFromSourceRef(_ref: string): string | undefined {
+    return undefined;
+  },
   transcriptToMarkdown(_transcript: string): string {
     throw new Error("OpenCode transcript projection is not supported yet.");
   },

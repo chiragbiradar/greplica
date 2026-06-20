@@ -9,9 +9,9 @@ export interface AgentSession {
   transcript_path: string | null;
   cwd: string | null;
   guidance_injected_at: string | null;
-  stops_since_memory_update_attempt: number;
+  stops_since_memory_current: number;
   last_seen_at: string;
-  last_memory_update_attempt_at: string | null;
+  last_memory_current_at: string | null;
 }
 
 export interface RecordHookInput {
@@ -34,15 +34,16 @@ export interface ClaimedMemoryUpdateAttempt {
   reason: "stop_threshold" | "time_threshold";
 }
 
-export interface MarkMemoryUpdatedInput {
+export interface MarkMemoryCurrentInput {
   repoId: string;
-  platform?: string;
+  platform: InstallPlatform;
   sessionId?: string;
   now?: Date;
 }
 
-const stopAttemptInterval = 5;
+const stopAttemptInterval = 7;
 const timeAttemptIntervalMs = 40 * 60 * 1000;
+const memoryCurrentGraceMs = 5 * 60 * 1000;
 
 export class HookSessionStore {
   constructor(private readonly db: Database.Database) {}
@@ -62,9 +63,9 @@ export class HookSessionStore {
         transcript_path: input.transcriptPath ?? null,
         cwd: input.cwd ?? null,
         guidance_injected_at: shouldInjectGuidance ? now : null,
-        stops_since_memory_update_attempt: incrementStop,
+        stops_since_memory_current: incrementStop,
         last_seen_at: now,
-        last_memory_update_attempt_at: null,
+        last_memory_current_at: null,
       };
       this.insert(session);
       return { session, shouldInjectGuidance };
@@ -76,7 +77,7 @@ export class HookSessionStore {
       transcript_path: input.transcriptPath ?? existing.transcript_path,
       cwd: input.cwd ?? existing.cwd,
       guidance_injected_at: shouldInjectGuidance ? now : existing.guidance_injected_at,
-      stops_since_memory_update_attempt: existing.stops_since_memory_update_attempt + incrementStop,
+      stops_since_memory_current: existing.stops_since_memory_current + incrementStop,
       last_seen_at: now,
     };
     this.updateSessionState(session);
@@ -91,42 +92,23 @@ export class HookSessionStore {
       for (const session of sessions) {
         const reason = shouldAttemptUpdate(session, claimedAt);
         if (reason === undefined) continue;
-        const updated = this.markMemoryUpdateAttempt(session, reason, claimedAt);
-        claimed.push({ session: updated, reason });
+        claimed.push({ session, reason });
       }
 
       return claimed;
     })(now) as ClaimedMemoryUpdateAttempt[];
   }
 
-  markMemoryUpdated(input: MarkMemoryUpdatedInput): boolean {
-    const updatedAt = iso(input.now);
-    if (isInstallPlatform(input.platform) && input.sessionId !== undefined && input.sessionId.length > 0) {
-      const updated = this.db
-        .prepare(
-          `UPDATE agent_sessions
-           SET last_memory_update_attempt_at = ?,
-               stops_since_memory_update_attempt = 0
-           WHERE repo_id = ? AND platform = ? AND session_id = ?`,
-        )
-        .run(updatedAt, input.repoId, input.platform, input.sessionId);
-      if (updated.changes > 0) return true;
-    }
-
+  markMemoryCurrent(input: MarkMemoryCurrentInput): boolean {
+    if (input.sessionId === undefined || input.sessionId.length === 0) return false;
     const updated = this.db
       .prepare(
         `UPDATE agent_sessions
-         SET last_memory_update_attempt_at = ?,
-             stops_since_memory_update_attempt = 0
-         WHERE rowid = (
-           SELECT rowid
-           FROM agent_sessions
-           WHERE repo_id = ?
-           ORDER BY last_seen_at DESC
-           LIMIT 1
-         )`,
+         SET last_memory_current_at = ?,
+             stops_since_memory_current = 0
+         WHERE repo_id = ? AND platform = ? AND session_id = ?`,
       )
-      .run(updatedAt, input.repoId);
+      .run(iso(input.now), input.repoId, input.platform, input.sessionId);
     return updated.changes > 0;
   }
 
@@ -145,10 +127,10 @@ export class HookSessionStore {
       .prepare(
         `INSERT INTO agent_sessions (
           platform, session_id, repo_id, transcript_path, cwd, guidance_injected_at,
-          stops_since_memory_update_attempt, last_seen_at, last_memory_update_attempt_at
+          stops_since_memory_current, last_seen_at, last_memory_current_at
         ) VALUES (
           @platform, @session_id, @repo_id, @transcript_path, @cwd, @guidance_injected_at,
-          @stops_since_memory_update_attempt, @last_seen_at, @last_memory_update_attempt_at
+          @stops_since_memory_current, @last_seen_at, @last_memory_current_at
         )`,
       )
       .run(session);
@@ -162,32 +144,11 @@ export class HookSessionStore {
              transcript_path = @transcript_path,
              cwd = @cwd,
              guidance_injected_at = @guidance_injected_at,
-             stops_since_memory_update_attempt = @stops_since_memory_update_attempt,
+             stops_since_memory_current = @stops_since_memory_current,
              last_seen_at = @last_seen_at
          WHERE platform = @platform AND session_id = @session_id`,
       )
       .run(session);
-  }
-
-  private markMemoryUpdateAttempt(
-    session: AgentSession,
-    reason: ClaimedMemoryUpdateAttempt["reason"],
-    now: Date,
-  ): AgentSession {
-    const updated: AgentSession = {
-      ...session,
-      last_memory_update_attempt_at: iso(now),
-      stops_since_memory_update_attempt: 0,
-    };
-    this.db
-      .prepare(
-        `UPDATE agent_sessions
-         SET last_memory_update_attempt_at = @last_memory_update_attempt_at,
-             stops_since_memory_update_attempt = @stops_since_memory_update_attempt
-         WHERE platform = @platform AND session_id = @session_id`,
-      )
-      .run(updated);
-    return updated;
   }
 }
 
@@ -195,22 +156,22 @@ export function shouldAttemptUpdate(
   session: AgentSession,
   now = new Date(),
 ): ClaimedMemoryUpdateAttempt["reason"] | undefined {
-  if (session.stops_since_memory_update_attempt >= stopAttemptInterval) {
+  if (session.stops_since_memory_current >= stopAttemptInterval) {
     return "stop_threshold";
   }
 
-  const lastAttemptAt = parseTime(session.last_memory_update_attempt_at);
+  const lastCurrentAt = parseTime(session.last_memory_current_at);
   const lastSeenAt = parseTime(session.last_seen_at);
   if (lastSeenAt === undefined) return undefined;
 
-  if (lastAttemptAt === undefined) {
+  if (lastCurrentAt === undefined) {
     return now.getTime() - lastSeenAt.getTime() >= timeAttemptIntervalMs
       ? "time_threshold"
       : undefined;
   }
 
-  if (lastSeenAt <= lastAttemptAt) return undefined;
-  return now.getTime() - lastAttemptAt.getTime() >= timeAttemptIntervalMs ? "time_threshold" : undefined;
+  if (lastSeenAt.getTime() <= lastCurrentAt.getTime() + memoryCurrentGraceMs) return undefined;
+  return now.getTime() - lastCurrentAt.getTime() >= timeAttemptIntervalMs ? "time_threshold" : undefined;
 }
 
 function fallbackSessionId(input: RecordHookInput): string {
@@ -227,8 +188,4 @@ function parseTime(value: string | null): Date | undefined {
   if (value === null) return undefined;
   const date = new Date(value);
   return Number.isNaN(date.getTime()) ? undefined : date;
-}
-
-function isInstallPlatform(value: string | undefined): value is InstallPlatform {
-  return value === "codex" || value === "claude" || value === "opencode";
 }

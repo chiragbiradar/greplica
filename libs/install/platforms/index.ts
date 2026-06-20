@@ -21,3 +21,7 @@ export function platformInstaller(platform: InstallPlatform): PlatformInstaller 
   if (installer === undefined) throw new Error(`Unsupported install platform: ${platform}`);
   return installer;
 }
+
+export function allPlatformInstallers(): PlatformInstaller[] {
+  return Object.values(platformInstallers).filter((installer): installer is PlatformInstaller => installer !== undefined);
+}

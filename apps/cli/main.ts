@@ -18,6 +18,7 @@ import { createEmbedder } from "../../libs/knowledge-graph/graph-context/embedde
 import { compactGraphContextResult, renderGraphContextMarkdown } from "../../libs/knowledge-graph/graph-context/render.js";
 import { buildGraphFolderExport } from "../../libs/knowledge-graph/folder-export.js";
 import { installGreplica, platformDisplayName } from "../../libs/install/install.js";
+import { allPlatformInstallers } from "../../libs/install/platforms/index.js";
 import type { InstallEmbedding, InstallPlatform } from "../../libs/install/paths.js";
 import { hookCwd, hookEventName, hookSessionId, hookTranscriptPath, readHookInput } from "../../libs/hooks/hook-input.js";
 import { HookSessionStore } from "../../libs/hooks/session-state.js";
@@ -53,6 +54,11 @@ async function main(argv: string[]): Promise<void> {
 
   if (area === "hook" && action === "worker") {
     await runHookWorker();
+    return;
+  }
+
+  if (area === "session" && action === "mark-memory-current") {
+    runSessionMarkMemoryCurrent(rest);
     return;
   }
 
@@ -163,7 +169,7 @@ async function main(argv: string[]): Promise<void> {
     console.log(`Embeddings checked: ${result.embedding_status.checked_objects}`);
     console.log(`Embeddings created: ${result.embedding_status.created}`);
     console.log(`Embeddings reused: ${result.embedding_status.reused}`);
-    markProposalApplyMemoryUpdated(init.repo_id);
+    markProposalApplyMemoryUpdated(init.repo_id, proposal);
     return;
   }
 
@@ -222,17 +228,62 @@ function runHookIngest(args: string[]): void {
 
 const greplicaContextMarker = "Greplica hook guidance";
 
-function markProposalApplyMemoryUpdated(repoId: string): void {
+function runSessionMarkMemoryCurrent(args: string[]): void {
+  const sessionRef = parseRequiredOption(args, "--session-ref", "Usage: greplica session mark-memory-current --session-ref <ref>");
+  const { repo, service } = createCommandContext();
+  const init = service.initRepo(repo);
   const db = openDatabase();
   try {
-    new HookSessionStore(db).markMemoryUpdated({
-      repoId,
-      platform: process.env.GREPLICA_SESSION_PLATFORM,
-      sessionId: process.env.GREPLICA_SESSION_ID,
-    });
+    const marked = markMemoryCurrentFromSessionRef(new HookSessionStore(db), init.repo_id, sessionRef);
+    if (marked) {
+      console.log("Marked session memory current.");
+      return;
+    }
+    console.log(`No tracked session matched ${sessionRef}`);
+    process.exitCode = 1;
   } finally {
     db.close();
   }
+}
+
+function markProposalApplyMemoryUpdated(repoId: string, proposal: unknown): void {
+  const sessionRefs = sessionRefsFromProposal(proposal);
+  if (sessionRefs.length === 0) return;
+
+  const db = openDatabase();
+  try {
+    const sessionStore = new HookSessionStore(db);
+    for (const sessionRef of sessionRefs) markMemoryCurrentFromSessionRef(sessionStore, repoId, sessionRef);
+  } finally {
+    db.close();
+  }
+}
+
+function markMemoryCurrentFromSessionRef(sessionStore: HookSessionStore, repoId: string, sessionRef: string): boolean {
+  const identity = sessionIdentityFromSourceRef(sessionRef);
+  if (identity === undefined) return false;
+  return sessionStore.markMemoryCurrent({
+    repoId,
+    platform: identity.platform,
+    sessionId: identity.sessionId,
+  });
+}
+
+function sessionIdentityFromSourceRef(ref: string): { platform: InstallPlatform; sessionId: string } | undefined {
+  for (const platform of allPlatformInstallers()) {
+    const sessionId = platform.sessionIdFromSourceRef(ref);
+    if (sessionId !== undefined && sessionId.length > 0) return { platform: platform.platform, sessionId };
+  }
+  return undefined;
+}
+
+function sessionRefsFromProposal(proposal: unknown): string[] {
+  if (!isRecord(proposal) || !isRecord(proposal.creates) || !Array.isArray(proposal.creates.sources)) return [];
+  const refs: string[] = [];
+  for (const source of proposal.creates.sources) {
+    if (isRecord(source) && source.kind === "session" && typeof source.ref === "string") refs.push(source.ref);
+  }
+  return refs;
 }
 
 function parseHookIngestPlatform(args: string[]): InstallPlatform {
@@ -410,6 +461,7 @@ function printInstallResult(result: Awaited<ReturnType<typeof installGreplica>>)
     console.log(`- events: ${result.hooks.events.join(", ")}`);
     console.log(`- command: ${result.hooks.command}`);
     for (const configFile of result.hooks.configFiles) console.log(`- config: ${configFile}`);
+    console.log("- note: your agent may ask you to trust or accept these hooks the next time it starts.");
     console.log("");
   }
   console.log("Embedding:");
@@ -417,11 +469,17 @@ function printInstallResult(result: Awaited<ReturnType<typeof installGreplica>>)
   console.log(`- config: ${result.configFile}`);
   console.log(`- database: ${result.databasePath}`);
   console.log("");
-  console.log("How to use Greplica:");
-  console.log("- If this repo has not been initialized yet, ask your coding agent to run greplica-bootstrap for this repo. You only need to do this once per repo.");
-  console.log("- After that, your coding agent can use greplica graph context \"<question>\" inside tasks to fetch relevant repo context, including prior working memory, before broad manual exploration.");
-  console.log("- Session hooks now record prompt and turn boundaries and attempt background working-memory updates.");
-  console.log("- You can still manually ask your coding agent to run greplica-update-working-memory near the end of an important session.");
+  console.log("Next steps:");
+  console.log("- Restart your coding agent if the new skills or hooks do not appear immediately.");
+  if (result.hooks !== undefined) {
+    console.log("- Accept or trust the installed hooks if your agent asks. Hooks record session activity and attempt background working-memory updates.");
+    console.log("- If you do not accept the hooks, background saves will not run; manually ask the agent to use greplica-update-working-memory near the end of useful sessions.");
+  } else {
+    console.log("- Hooks were not installed for this platform. Manually ask the agent to use greplica-update-working-memory near the end of useful sessions.");
+  }
+  console.log("- Add a short AGENTS.md/CLAUDE.md instruction if hooks are unavailable or not accepted: use greplica graph context \"<question>\" before broad manual exploration.");
+  console.log("- Ask the agent to use greplica-bootstrap once for repos that do not have memory yet.");
+  console.log("- During work, the agent can run greplica graph context \"<question>\" to fetch relevant repo memory.");
   if (result.embedding === "local") {
     console.log(`- OpenAI embeddings are also available if you want better retrieval quality later: greplica install --platform ${result.platform} --embedding openai`);
   } else {
@@ -453,6 +511,15 @@ function readProposal(file: string): unknown {
 function requireFile(file: string | undefined, usage: string): string {
   if (file === undefined || file.trim().length === 0) throw new Error(usage);
   return file;
+}
+
+function parseRequiredOption(args: string[], name: string, usage: string): string {
+  for (let index = 0; index < args.length; index += 1) {
+    const arg = args[index];
+    if (arg === name) return requireFile(args[index + 1], usage);
+    if (arg.startsWith(`${name}=`)) return requireFile(arg.slice(name.length + 1), usage);
+  }
+  throw new Error(usage);
 }
 
 function parseGraphContextOutput(args: string[]): "markdown" | "json" | "debug" {
@@ -494,6 +561,10 @@ function field(item: object, key: string): string {
   return value === undefined || value === null ? "" : String(value);
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
 function printHelp(): void {
   const cli = basename(process.argv[1] ?? "greplica");
   console.log(`Usage:
@@ -504,6 +575,7 @@ function printHelp(): void {
   ${cli} graph read
   ${cli} graph context <query> [--json|--debug]
   ${cli} graph export <dir>
+  ${cli} session mark-memory-current --session-ref <ref>
   ${cli} proposal validate <file>
   ${cli} proposal apply <file>`);
 }

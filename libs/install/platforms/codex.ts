@@ -33,6 +33,12 @@ export const codexInstaller: PlatformInstaller = {
       },
     };
   },
+  sessionSourceRef(sessionId: string): string {
+    return `codex-session:${sessionId}`;
+  },
+  sessionIdFromSourceRef(ref: string): string | undefined {
+    return ref.startsWith("codex-session:") ? ref.slice("codex-session:".length) : undefined;
+  },
   transcriptToMarkdown(transcript: string): string {
     return codexTranscriptToMarkdown(transcript);
   },

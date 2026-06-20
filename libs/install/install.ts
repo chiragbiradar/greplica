@@ -36,7 +36,6 @@ export async function installGreplica(options: InstallOptions): Promise<InstallR
   if (options.embedding === "local") {
     notes.push("Local embeddings were configured without prewarming; the first graph-context query may download the local model.");
   }
-  notes.push(`Restart ${platformDisplayName(options.platform)} if the new skills do not appear immediately.`);
 
   return {
     platform: options.platform,

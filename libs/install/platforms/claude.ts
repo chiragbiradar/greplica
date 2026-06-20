@@ -34,6 +34,12 @@ export const claudeInstaller: PlatformInstaller = {
       },
     };
   },
+  sessionSourceRef(sessionId: string): string {
+    return `claude-code-session:${sessionId}`;
+  },
+  sessionIdFromSourceRef(ref: string): string | undefined {
+    return ref.startsWith("claude-code-session:") ? ref.slice("claude-code-session:".length) : undefined;
+  },
   transcriptToMarkdown(transcript: string): string {
     return claudeTranscriptToMarkdown(transcript);
   },

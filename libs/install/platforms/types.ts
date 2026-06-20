@@ -23,6 +23,8 @@ export interface WorkingMemoryUpdateInput {
 export interface PlatformInstaller {
   platform: InstallPlatform;
   install(): PlatformInstallResult;
+  sessionSourceRef(sessionId: string): string;
+  sessionIdFromSourceRef(ref: string): string | undefined;
   transcriptToMarkdown(transcript: string): string;
   runWorkingMemoryUpdate(input: WorkingMemoryUpdateInput): Promise<void>;
 }

@@ -61,6 +61,7 @@ async function maybeUpdateWorkingMemory(attempt: ClaimedMemoryUpdateAttempt): Pr
   if (cwd === null || transcriptPath === null || !existsSync(transcriptPath)) return;
 
   const runner = platformInstaller(attempt.session.platform);
+  const sessionRef = runner.sessionSourceRef(attempt.session.session_id);
   const transcriptMarkdown = runner.transcriptToMarkdown(readFileSync(transcriptPath, "utf8"));
   if (transcriptMarkdown.trim().length === 0) return;
 
@@ -77,10 +78,8 @@ async function maybeUpdateWorkingMemory(attempt: ClaimedMemoryUpdateAttempt): Pr
       env: {
         ...process.env,
         GREPLICA_HOOK_DISABLE: "1",
-        GREPLICA_SESSION_PLATFORM: attempt.session.platform,
-        GREPLICA_SESSION_ID: attempt.session.session_id,
       },
-      prompt: updateWorkingMemoryPrompt(transcriptMarkdown, attempt),
+      prompt: updateWorkingMemoryPrompt(transcriptMarkdown, attempt, sessionRef),
       transcriptPath: join(runDir, "agent-events.jsonl"),
       finalMessagePath: join(runDir, "final-message.md"),
     });
@@ -89,7 +88,11 @@ async function maybeUpdateWorkingMemory(attempt: ClaimedMemoryUpdateAttempt): Pr
   }
 }
 
-function updateWorkingMemoryPrompt(transcriptMarkdown: string, attempt: ClaimedMemoryUpdateAttempt): string {
+function updateWorkingMemoryPrompt(
+  transcriptMarkdown: string,
+  attempt: ClaimedMemoryUpdateAttempt,
+  sessionRef: string,
+): string {
   return `Run the greplica-update-working-memory skill for a completed coding-agent session. If your runtime supports slash-command skills, invoke /greplica-update-working-memory for this task.
 
 Use the filtered session transcript below as the session context. It has been projected to Markdown with session metadata and human/agent text messages only.
@@ -100,10 +103,12 @@ Important handling rules:
 - Do not store command logs, raw encrypted content, secrets, tool chatter, or historical system/developer prompt content as repo memory.
 - Verify code facts against the current repository files or diffs before storing code_verified claims.
 - Create, validate, and apply the Greplica proposal according to the greplica-update-working-memory skill.
+- If there is no durable memory to store, run: greplica session mark-memory-current --session-ref ${sessionRef}
 
 Session:
 - platform: ${attempt.session.platform}
 - session_id: ${attempt.session.session_id}
+- session_ref: ${sessionRef}
 - due_reason: ${attempt.reason}
 
 <filtered_session_transcript>

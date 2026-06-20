@@ -91,9 +91,9 @@ CREATE TABLE IF NOT EXISTS agent_sessions (
   transcript_path TEXT,
   cwd TEXT,
   guidance_injected_at TEXT,
-  stops_since_memory_update_attempt INTEGER NOT NULL DEFAULT 0,
+  stops_since_memory_current INTEGER NOT NULL DEFAULT 0,
   last_seen_at TEXT NOT NULL,
-  last_memory_update_attempt_at TEXT,
+  last_memory_current_at TEXT,
   PRIMARY KEY(platform, session_id)
 );
 
