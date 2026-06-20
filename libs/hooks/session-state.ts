@@ -34,6 +34,13 @@ export interface ClaimedMemoryUpdateAttempt {
   reason: "stop_threshold" | "time_threshold";
 }
 
+export interface MarkMemoryUpdatedInput {
+  repoId: string;
+  platform?: string;
+  sessionId?: string;
+  now?: Date;
+}
+
 const stopAttemptInterval = 5;
 const timeAttemptIntervalMs = 40 * 60 * 1000;
 
@@ -90,6 +97,37 @@ export class HookSessionStore {
 
       return claimed;
     })(now) as ClaimedMemoryUpdateAttempt[];
+  }
+
+  markMemoryUpdated(input: MarkMemoryUpdatedInput): boolean {
+    const updatedAt = iso(input.now);
+    if (isInstallPlatform(input.platform) && input.sessionId !== undefined && input.sessionId.length > 0) {
+      const updated = this.db
+        .prepare(
+          `UPDATE agent_sessions
+           SET last_memory_update_attempt_at = ?,
+               stops_since_memory_update_attempt = 0
+           WHERE repo_id = ? AND platform = ? AND session_id = ?`,
+        )
+        .run(updatedAt, input.repoId, input.platform, input.sessionId);
+      if (updated.changes > 0) return true;
+    }
+
+    const updated = this.db
+      .prepare(
+        `UPDATE agent_sessions
+         SET last_memory_update_attempt_at = ?,
+             stops_since_memory_update_attempt = 0
+         WHERE rowid = (
+           SELECT rowid
+           FROM agent_sessions
+           WHERE repo_id = ?
+           ORDER BY last_seen_at DESC
+           LIMIT 1
+         )`,
+      )
+      .run(updatedAt, input.repoId);
+    return updated.changes > 0;
   }
 
   private find(platform: InstallPlatform, sessionId: string): AgentSession | undefined {
@@ -189,4 +227,8 @@ function parseTime(value: string | null): Date | undefined {
   if (value === null) return undefined;
   const date = new Date(value);
   return Number.isNaN(date.getTime()) ? undefined : date;
+}
+
+function isInstallPlatform(value: string | undefined): value is InstallPlatform {
+  return value === "codex" || value === "claude" || value === "opencode";
 }

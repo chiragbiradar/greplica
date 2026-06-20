@@ -149,6 +149,7 @@ async function main(argv: string[]): Promise<void> {
   if (area === "proposal" && action === "apply") {
     const file = requireFile(rest[0], "Usage: greplica proposal apply <file>");
     const { repo, service } = createCommandContext();
+    const init = service.initRepo(repo);
     const proposal = readProposal(file);
     const result = await service.applyProposal(repo, proposal);
     console.log("Applied proposal to working memory.");
@@ -162,6 +163,7 @@ async function main(argv: string[]): Promise<void> {
     console.log(`Embeddings checked: ${result.embedding_status.checked_objects}`);
     console.log(`Embeddings created: ${result.embedding_status.created}`);
     console.log(`Embeddings reused: ${result.embedding_status.reused}`);
+    markProposalApplyMemoryUpdated(init.repo_id);
     return;
   }
 
@@ -219,6 +221,19 @@ function runHookIngest(args: string[]): void {
 }
 
 const greplicaContextMarker = "Greplica hook guidance";
+
+function markProposalApplyMemoryUpdated(repoId: string): void {
+  const db = openDatabase();
+  try {
+    new HookSessionStore(db).markMemoryUpdated({
+      repoId,
+      platform: process.env.GREPLICA_SESSION_PLATFORM,
+      sessionId: process.env.GREPLICA_SESSION_ID,
+    });
+  } finally {
+    db.close();
+  }
+}
 
 function parseHookIngestPlatform(args: string[]): InstallPlatform {
   for (let index = 0; index < args.length; index += 1) {

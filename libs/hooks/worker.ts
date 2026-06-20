@@ -77,6 +77,8 @@ async function maybeUpdateWorkingMemory(attempt: ClaimedMemoryUpdateAttempt): Pr
       env: {
         ...process.env,
         GREPLICA_HOOK_DISABLE: "1",
+        GREPLICA_SESSION_PLATFORM: attempt.session.platform,
+        GREPLICA_SESSION_ID: attempt.session.session_id,
       },
       prompt: updateWorkingMemoryPrompt(transcriptMarkdown, attempt),
       transcriptPath: join(runDir, "agent-events.jsonl"),
