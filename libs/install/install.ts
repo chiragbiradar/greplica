@@ -1,6 +1,6 @@
 import { resolve } from "node:path";
 import { envVarSource, loadRepoEnv } from "../env/load-local-env.js";
-import { greplicaConfigPath, updateEmbeddingConfig, type EmbeddingProvider } from "../config/greplica-config.js";
+import { greplicaConfigPath, updateEmbeddingConfig, type EmbeddingProvider, type SessionConfig } from "../config/greplica-config.js";
 import { graphContextConfigFromGreplicaConfig } from "../knowledge-graph/graph-context/config.js";
 import { createLocalKnowledgeGraphService } from "../knowledge-graph/service.js";
 import type { RepoRef } from "../knowledge-graph/service.js";
@@ -21,6 +21,7 @@ export interface InstallResult {
   skills: string[];
   hooks?: HookInstallResult;
   embedding: InstallEmbedding;
+  session: SessionConfig;
   configFile: string;
   databasePath: string;
   notes: string[];
@@ -42,6 +43,7 @@ export async function installGreplica(options: InstallOptions): Promise<InstallR
     skills: platformInstall.skills,
     hooks: platformInstall.hooks,
     embedding: options.embedding,
+    session: embedding.config.session,
     configFile: embedding.configPath,
     databasePath: init.database_path,
     notes,

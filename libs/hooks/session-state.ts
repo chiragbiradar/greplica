@@ -1,5 +1,6 @@
 import type Database from "better-sqlite3";
 import { createHash } from "node:crypto";
+import type { SessionConfig } from "../config/greplica-config.js";
 import type { InstallPlatform } from "../install/paths.js";
 
 export interface AgentSession {
@@ -41,12 +42,15 @@ export interface MarkMemoryCurrentInput {
   now?: Date;
 }
 
-const stopAttemptInterval = 7;
-const timeAttemptIntervalMs = 40 * 60 * 1000;
-const memoryCurrentGraceMs = 5 * 60 * 1000;
+const defaultStopThreshold = 7;
+const defaultTimeThresholdMinutes = 40;
+const defaultCurrentGraceMinutes = 5;
 
 export class HookSessionStore {
-  constructor(private readonly db: Database.Database) {}
+  constructor(
+    private readonly db: Database.Database,
+    private readonly sessionConfig?: SessionConfig,
+  ) {}
 
   recordHook(input: RecordHookInput): RecordHookResult {
     const now = iso(input.now);
@@ -90,7 +94,7 @@ export class HookSessionStore {
       const claimed: ClaimedMemoryUpdateAttempt[] = [];
 
       for (const session of sessions) {
-        const reason = shouldAttemptUpdate(session, claimedAt);
+        const reason = shouldAttemptUpdate(session, claimedAt, this.sessionConfig);
         if (reason === undefined) continue;
         claimed.push({ session, reason });
       }
@@ -155,8 +159,11 @@ export class HookSessionStore {
 export function shouldAttemptUpdate(
   session: AgentSession,
   now = new Date(),
+  config?: SessionConfig,
 ): ClaimedMemoryUpdateAttempt["reason"] | undefined {
-  if (session.stops_since_memory_current >= stopAttemptInterval) {
+  const thresholds = sessionThresholds(config);
+
+  if (session.stops_since_memory_current >= thresholds.stopAttemptInterval) {
     return "stop_threshold";
   }
 
@@ -165,13 +172,25 @@ export function shouldAttemptUpdate(
   if (lastSeenAt === undefined) return undefined;
 
   if (lastCurrentAt === undefined) {
-    return now.getTime() - lastSeenAt.getTime() >= timeAttemptIntervalMs
+    return now.getTime() - lastSeenAt.getTime() >= thresholds.timeAttemptIntervalMs
       ? "time_threshold"
       : undefined;
   }
 
-  if (lastSeenAt.getTime() <= lastCurrentAt.getTime() + memoryCurrentGraceMs) return undefined;
-  return now.getTime() - lastCurrentAt.getTime() >= timeAttemptIntervalMs ? "time_threshold" : undefined;
+  if (lastSeenAt.getTime() <= lastCurrentAt.getTime() + thresholds.memoryCurrentGraceMs) return undefined;
+  return now.getTime() - lastCurrentAt.getTime() >= thresholds.timeAttemptIntervalMs ? "time_threshold" : undefined;
+}
+
+function sessionThresholds(config: SessionConfig | undefined): {
+  stopAttemptInterval: number;
+  timeAttemptIntervalMs: number;
+  memoryCurrentGraceMs: number;
+} {
+  return {
+    stopAttemptInterval: config?.stopThreshold ?? defaultStopThreshold,
+    timeAttemptIntervalMs: (config?.timeThresholdMinutes ?? defaultTimeThresholdMinutes) * 60 * 1000,
+    memoryCurrentGraceMs: (config?.currentGraceMinutes ?? defaultCurrentGraceMinutes) * 60 * 1000,
+  };
 }
 
 function fallbackSessionId(input: RecordHookInput): string {

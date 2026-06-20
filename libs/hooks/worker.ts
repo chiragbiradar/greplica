@@ -1,10 +1,11 @@
 import { spawn } from "node:child_process";
-import { existsSync, mkdirSync, readFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { ClaimedMemoryUpdateAttempt } from "./session-state.js";
 import { HookSessionStore } from "./session-state.js";
 import { WorkerLease } from "./worker-lock.js";
-import { greplicaHome } from "../config/greplica-home.js";
+import { ensureGreplicaConfig } from "../config/greplica-config.js";
 import { platformInstaller } from "../install/platforms/index.js";
 import { openDatabase } from "../storage/sqlite/db.js";
 
@@ -41,7 +42,8 @@ export async function runHookWorker(): Promise<void> {
     }, hookWorkerHeartbeatMs);
     heartbeat.unref();
 
-    const sessionStore = new HookSessionStore(db);
+    const config = ensureGreplicaConfig();
+    const sessionStore = new HookSessionStore(db, config.session);
     if (!lease.renew()) return;
     const attempts = sessionStore.claimDueMemoryUpdateAttempts();
     for (const attempt of attempts) {
@@ -65,12 +67,9 @@ async function maybeUpdateWorkingMemory(attempt: ClaimedMemoryUpdateAttempt): Pr
   const transcriptMarkdown = runner.transcriptToMarkdown(readFileSync(transcriptPath, "utf8"));
   if (transcriptMarkdown.trim().length === 0) return;
 
-  const runDir = join(
-    greplicaHome(),
-    "hook-runs",
-    `${Date.now()}-${safePathSegment(attempt.session.platform)}-${safePathSegment(attempt.session.session_id)}`,
+  const runDir = mkdtempSync(
+    join(tmpdir(), `greplica-hook-${safePathSegment(attempt.session.platform)}-${safePathSegment(attempt.session.session_id)}-`),
   );
-  mkdirSync(runDir, { recursive: true });
 
   try {
     await runner.runWorkingMemoryUpdate({
@@ -85,6 +84,8 @@ async function maybeUpdateWorkingMemory(attempt: ClaimedMemoryUpdateAttempt): Pr
     });
   } catch {
     // Failed background updates should not affect foreground hook sessions.
+  } finally {
+    rmSync(runDir, { recursive: true, force: true });
   }
 }
 

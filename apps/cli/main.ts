@@ -212,7 +212,7 @@ function runHookIngest(args: string[]): void {
 
     if (!result.shouldInjectGuidance) return;
     const additionalContext =
-      `${greplicaContextMarker}: before broad manual exploration in this repository, use greplica graph context "<question>" to retrieve relevant repo memory.`;
+      `${greplicaContextMarker}: greplica is a repo-memory search tool for finding relevant architecture, decisions, flows, and code anchors. Before broad manual exploration in this repository, run greplica graph context "<question>" with a focused natural-language query. When Greplica provides useful context, mention that you used it and briefly say what it helped with.`;
     console.log(
       JSON.stringify({
         hookSpecificOutput: {
@@ -332,6 +332,7 @@ async function runDoctor(args: string[]): Promise<void> {
 
   console.log(`Config: ${displayConfigPath()}`);
   printEmbeddingConfig(context.config.embedding);
+  printSessionConfig(context.config.session);
 
   if (context.config.embedding.provider === "openai") {
     const source = envVarSource("OPENAI_API_KEY", context.env);
@@ -380,6 +381,12 @@ function runConfigCommand(args: string[]): void {
   console.log("Allowed embedding.provider values:");
   console.log("- local");
   console.log("- openai");
+  console.log("");
+  console.log("Session hook settings:");
+  printSessionConfig(config.session);
+  console.log("- stopThreshold: run background memory update after this many Stop hooks since memory was current.");
+  console.log("- timeThresholdMinutes: run after this much time if the session has activity not covered by current memory.");
+  console.log("- currentGraceMinutes: skip time-based updates when memory was marked current close to last activity.");
   console.log("");
   console.log("Common embedding examples:");
   console.log("- local MPNet base: provider=local, model=all-mpnet-base-v2, dimensions=768, batchSize=16");
@@ -468,6 +475,9 @@ function printInstallResult(result: Awaited<ReturnType<typeof installGreplica>>)
   console.log(`- ${result.embedding}`);
   console.log(`- config: ${result.configFile}`);
   console.log(`- database: ${result.databasePath}`);
+  console.log(`- session stop threshold: ${result.session.stopThreshold}`);
+  console.log(`- session time threshold: ${result.session.timeThresholdMinutes} minutes`);
+  console.log(`- session current grace: ${result.session.currentGraceMinutes} minutes`);
   console.log("");
   console.log("Next steps:");
   console.log("- Restart your coding agent if the new skills or hooks do not appear immediately.");
@@ -498,6 +508,12 @@ function printEmbeddingConfig(config: EmbeddingConfig): void {
   console.log(`Embedding model: ${config.model}`);
   console.log(`Embedding dimensions: ${config.dimensions}`);
   console.log(`Embedding batch size: ${config.batchSize}`);
+}
+
+function printSessionConfig(config: GreplicaConfig["session"]): void {
+  console.log(`Session stop threshold: ${config.stopThreshold}`);
+  console.log(`Session time threshold minutes: ${config.timeThresholdMinutes}`);
+  console.log(`Session current grace minutes: ${config.currentGraceMinutes}`);
 }
 
 function displayConfigPath(): string {
