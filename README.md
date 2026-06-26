@@ -167,8 +167,9 @@ Ask your agent to find 1-3 recent prior sessions for this repo and show you the 
 
 Candidate locations:
 
-- Codex: `~/.codex/sessions/**/*.jsonl`; prefer transcripts whose metadata `cwd` matches this repo.
-- Claude Code: `~/.claude/projects/<sanitized-current-cwd>/*.jsonl`; if needed, fall back to `~/.claude/projects/**/*.jsonl` and filter by transcript metadata `cwd`.
+- Codex: `~/.codex/sessions/**/*.jsonl`.
+- Claude Code: search both `~/.claude/projects/<sanitized-current-cwd>/*.jsonl` and `~/.claude/projects/**/*.jsonl`.
+- Same-repo matching should handle worktrees and renamed folders. Prefer exact metadata `cwd` matches, but also accept transcripts whose metadata `cwd` still exists and has the same Git `remote.origin.url` or normalized repo identity as the current repo. If the old path no longer exists, use cwd text, repo name, branch, and recent session content as weaker matching evidence.
 - OpenCode: transcript backfill is not supported yet.
 
 Bundle them:
