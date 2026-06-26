@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { ClaimedMemoryUpdateAttempt } from "./session-state.js";
 import { HookSessionStore } from "./session-state.js";
-import { WorkerLease } from "./worker-lock.js";
+import { WorkerLease } from "../utils/worker-lease.js";
 import { ensureGreplicaConfig } from "../config/greplica-config.js";
 import { platformInstaller } from "../install/platforms/index.js";
 import { openDatabase } from "../storage/sqlite/db.js";

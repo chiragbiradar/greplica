@@ -24,6 +24,7 @@ import type { InstallEmbedding, InstallPlatform } from "../../libs/install/paths
 import { hookCwd, hookEventName, hookSessionId, hookTranscriptPath, readHookInput } from "../../libs/hooks/hook-input.js";
 import { HookSessionStore } from "../../libs/hooks/session-state.js";
 import { runHookWorker, startHookWorker } from "../../libs/hooks/worker.js";
+import { withLocalModelLock } from "../../libs/knowledge-graph/graph-context/local-model-lock.js";
 import { openDatabase } from "../../libs/storage/sqlite/db.js";
 import { SqliteRepository as SqliteKnowledgeGraphRepository } from "../../libs/storage/sqlite/repository.js";
 import { detectRepoContext } from "./repo-context.js";
@@ -75,6 +76,11 @@ async function main(argv: string[]): Promise<void> {
 
   if (area === "doctor") {
     await runDoctor([action, ...rest].filter((arg): arg is string => arg !== undefined));
+    return;
+  }
+
+  if (area === "embeddings" && action === "prewarm") {
+    await runEmbeddingsPrewarm(rest);
     return;
   }
 
@@ -418,6 +424,23 @@ async function runDoctor(args: string[]): Promise<void> {
   process.exitCode = ready ? 0 : 1;
 }
 
+async function runEmbeddingsPrewarm(args: string[]): Promise<void> {
+  if (args.length > 0) throw new Error("Usage: greplica embeddings prewarm");
+
+  const config = ensureGreplicaConfig();
+  if (config.embedding.provider === "openai") {
+    console.log("Embedding provider is openai; local prewarm is not needed.");
+    return;
+  }
+
+  const result = await withLocalModelLock(config.embedding, { wait: false }, () => checkEmbeddings(config.embedding));
+  if (!result.acquired) {
+    console.log("Local embedding prewarm is already running; skipping.");
+    return;
+  }
+  process.exitCode = result.value === true ? 0 : 1;
+}
+
 async function checkEmbeddings(config: EmbeddingConfig): Promise<boolean> {
   try {
     console.log(`Checking ${config.provider} embeddings...`);
@@ -748,6 +771,7 @@ function printHelp(): void {
   ${cli} install --platform codex|claude|opencode --embedding local|openai
   ${cli} config
   ${cli} doctor [--check-embeddings]
+  ${cli} embeddings prewarm
   ${cli} graph read
   ${cli} graph context <query> [--debug]
   ${cli} graph audit anchors
