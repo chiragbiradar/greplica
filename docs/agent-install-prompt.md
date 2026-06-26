@@ -10,7 +10,7 @@ npm install -g greplica
 greplica install --platform <codex|claude|opencode> --embedding local
 ```
 
-Use the platform matching this agent. Do not manually copy skills. After installation, summarize the installer output, including skills, embedding mode, whether hooks were installed, and whether I need to restart or trust hooks.
+Use the platform matching this agent. Do not manually copy skills. After installation, do not echo the full installer output or repeat its next steps. Give only a compact status line: platform, embedding mode, whether hooks were installed, and whether I may need to restart or trust hooks.
 
 Before running any command, ask me one question:
 "Allow Greplica to learn from your past sessions to show what it can learn?"
@@ -57,5 +57,5 @@ One correction I will remember
 ```
 
 Then tell me how to use Greplica:
-- IMPORTANT: tell me that hooks and installed skills are the primary integration. Add a short AGENTS.md or CLAUDE.md instruction only if hooks are unavailable, not accepted, or I want extra repo-local guidance.
+- Keep this to one sentence: hooks and installed skills are the primary integration; add repo-local AGENTS.md or CLAUDE.md guidance only if hooks are unavailable, not accepted, or I want extra guidance.
 `````
