@@ -62,7 +62,8 @@ For each candidate, record:
 
 - which transcript section supports it
 - whether it should be `code_verified`, `source_verified`, `unknown`, or dropped
-- whether code inspection is needed before storing it as `code_verified`
+- whether a code anchor would help navigation without changing the claim's truth source
+- whether limited code inspection is necessary because the claim's main value is current implementation behavior
 - whether existing memory already covers it
 - whether it should supersede an older broad or stale claim
 
@@ -72,7 +73,17 @@ Before writing the proposal, drop candidates that are obvious from the immediate
 
 Use `greplica graph context "<topic from the transcript bundle>"` to find existing relevant memory before adding new claims.
 
-For code facts, inspect the current repository and add precise `code_anchors`. A transcript can point you to the fact, but it does not make a code fact true.
+Default transcript-derived decisions, corrections, risks, rejected approaches, rationale, follow-ups, and workflow constraints to `source_verified`. A `source_verified` claim may include one precise `code_anchor` as a navigation hint when the transcript names a stable file or symbol, but the session source remains the evidence of truth.
+
+Do not inspect code just to upgrade source-backed memory to `code_verified`. Inspect code only when:
+
+- the claim's main value is current implementation behavior;
+- the bundle names a small file or symbol and the anchor will materially help navigation;
+- validation or apply requires resolving a real symbol for a `code_verified` claim.
+
+Keep code inspection targeted. Do not do broad scans to prove every transcript insight.
+
+For true code facts, inspect the current repository and add precise `code_anchors`. A transcript can point you to the fact, but it does not make a code fact true.
 
 Code anchors must use real symbols from the target file, such as exported functions, classes, types, or stable local functions. Do not invent command-name symbols like `graph export`. If the useful fact is about a CLI command but the command name is not a code symbol, anchor the implementation function that dispatches or builds the behavior, or keep the claim source-backed instead of `code_verified`.
 
@@ -81,6 +92,8 @@ If a transcript says work was planned, reverted, explored, or discussed but not 
 Be especially strict when a later or current checkout contains a similar file or helper. A transcript-backfill memory must come from the previous sessions, not from opportunistically noticing current code. If the bundle says a transcript-projection or eval-input change was reverted or planning-only, do not create components, flows, or `code_verified` claims that say transcript projection is implemented. The useful memory is the rejection/planning status, the user correction, or the future-work boundary.
 
 For session decisions, constraints, rejected alternatives, and future work, use `source_verified` or `unknown` and connect each claim to the relevant session source with an `evidenced_by` edge and a specific `metadata.reason`.
+
+When a `source_verified` claim includes a `code_anchor`, keep it to one anchor unless the claim is genuinely cross-boundary. Make the claim text and evidence reason clear that the session provides the decision or constraint and the anchor is there for navigation, not as the source of truth. Do not pack multiple implementation details into a source-backed decision just because they are near the same code.
 
 If a transcript discusses an issue, PR, review, or artifact, store the durable fact from the described content only when the bundle includes enough detail to support it. Do not store a title-only summary.
 
@@ -153,10 +166,12 @@ For source-backed claims, use explicit `edges[]` entries with `kind: "evidenced_
 - Keep distinct insights separate: old behavior, new behavior, rationale, rejected approach, gotcha, and future work should not be merged into one vague claim.
 - Reuse existing components and flows when graph context finds them.
 - Create new components or flows only when they improve navigation for future agents.
-- Use `code_verified` only after checking current code.
+- Use `code_verified` only when the stored text would be false or misleading if current code changed, and only after checking the targeted current code.
 - Use `source_verified` for session-derived decisions, constraints, rationale, rejected approaches, and explicit future work.
 - Use `unknown` for unresolved questions and tasks.
-- Add `supersedes[]` only when the new claim actually invalidates or replaces the older claim. Do not supersede broad true memory with an adjacent narrower constraint.
+- During transcript backfill, default to additive claims and usually leave `supersedes[]` empty. Add `supersedes[]` only when the transcript or current memory explicitly shows the older claim is false or replaced. Do not supersede broad true memory with an adjacent narrower constraint, and do not supersede a code fact with usage guidance.
+- Do not merge unrelated rules into one claim. If one clause is unsupported, split the claim or drop that clause.
+- Remove historical accident details from stored text. Preserve the durable rule, not the story of how the session got there.
 - Do not attach every claim to every transcript source. Connect each claim only to the transcript source that actually supports it.
 
 ## Validate, Apply, And Show Value
@@ -189,7 +204,7 @@ Do not output generic category names like "component/flow understanding" or "wor
 Use this output shape:
 
 ```markdown
-Applied transcript backfill to working memory: <proposal-file>
+Applied transcript backfill to working memory.
 
 Three useful things I learned from your previous sessions:
 
@@ -201,18 +216,3 @@ Three useful things I learned from your previous sessions:
 2. **...**
 3. **...**
 ```
-
-For example, from a good Greplica session bundle, strong corrected assumptions look like:
-
-1. **Install is the opt-in boundary**
-   `greplica install` creates/repairs repo state; graph, proposal, and session commands must require existing repo state instead of auto-initializing it.
-   Why it matters: future command changes should fail clearly in uninstalled repos, not silently create memory.
-   Backed by: install-policy session + `installGreplica`/`requireRepo`; connected to repo-scoped install.
-2. **Session evidence is not code truth**
-   Session sources prove decisions and trade-offs, but implementation facts still need current-code verification and anchors.
-   Why it matters: transcript backfill should not turn stale discussion into false code facts.
-   Backed by: source-provenance session + evidence validation; connected to proposal validation.
-3. **Graph export should stay compact**
-   `graph export` uses component/flow `index.md` pages, inline grouped claims, one `sources.md`, and no claims folder.
-   Why it matters: future export work should not recreate the rejected noisy folder hierarchy.
-   Backed by: graph-export session + `buildGraphFolderExport`; connected to graph folder export.
