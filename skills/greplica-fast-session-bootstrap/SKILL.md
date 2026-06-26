@@ -81,24 +81,24 @@ Allowed values:
 3. Fix validation errors.
 4. Run `greplica proposal apply <proposal-file>`.
 
+After `greplica proposal apply <proposal-file>` exits successfully, stop. The apply command is the final validation and write gate.
+
+Do not run extra proof or cleanup commands after successful apply, including `greplica proposal validate`, `greplica graph read`, `greplica graph context`, `greplica graph audit anchors`, tests, or a second apply, unless the user explicitly asks. Produce the final value summary from the proposal you just applied.
+
 ## Final Output
 
 Output only this shape:
 
 ```markdown
-Applied transcript backfill to working memory.
+Here is a small snippet of what I learned from your sessions:
 
-What I can now reconstruct without grepping
+** About <flow or component name>**
+- <specific workflow/component fact Greplica stored in simple language>
+- <specific constraint, decision, or edge in the flow in simple language>
 
-**<flow/component name>**
-- <specific fact Greplica stored about the flow/component>
-- <specific decision, constraint, or risk>
+<Only include this section if there is a strong user correction tied to a repo-specific risk or constraint. Explain what will we considered from the next time.>
 
-Stored in my graph. Next time, ask `greplica graph context "<topic>"`; no grep reconstruction needed.
-
-One correction I will remember
-
-<Include only if strong. State what a future agent might get wrong and what this memory will make it consider next time.>
+From next time I will use Greplica to get this context directly, without having to grep all over your files.
 ```
 
 Omit the correction section when it is weak. Do not include evidence lines, apply counts, or a three-memory list.

@@ -35,23 +35,12 @@ After baseline memory is applied, analyze prior sessions by default:
 greplica transcript bundle --platform <codex-or-claude> --file <path-1> [--file <path-2>] [--file <path-3>] --out <greplica-transcript-backfill.md>
 ```
 
-- Then use the `greplica-fast-session-bootstrap` skill on `<greplica-transcript-backfill.md>`.
-- After apply, preserve this transcript-backfill value section in the final answer. Include the optional correction section only if there is a strong repo-specific user correction or risk/gotcha:
-
-```markdown
-Here is a snippet of what I learned from your sessions:
-
-** About <flow or component name>**
-- <specific workflow/component fact Greplica stored in simple language>
-- <specific constraint, decision, or edge in the flow in simple language>
-
-<Only include this section if there is a strong user correction tied to a repo-specific risk or constraint. Explain what will we considered from the next time.>
-```
+- Then use the `greplica-fast-session-bootstrap` skill on `<greplica-transcript-backfill.md>` and include its final value summary naturally in the final answer.
 
 Final answer rules:
 - Write like you are updating a human, not filling a template.
 - Start by saying Greplica is installed and baseline memory is ready.
-- If transcript backfill ran, include the transcript-backfill value section above, but keep the wording natural.
+- If transcript backfill ran, include the `greplica-fast-session-bootstrap` final value summary naturally.
 - End with a short note that hooks and installed skills might need a restart.
 - Do not include installer output, selected transcript recap, proposal paths, apply counts, command lists, bundle paths, or a long usage guide unless I ask.
 `````
