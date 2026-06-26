@@ -31,10 +31,7 @@ Most users should not install Greplica by hand. Paste this into your coding agen
 Greplica requires Node.js 22-26.
 
 ```txt
-Install Greplica for this repo.
-Read and follow docs/agent-install-prompt.md.
-Use the platform matching this agent and local embeddings.
-Ask first whether to use recent prior sessions for richer memory.
+Install Greplica for this repo using https://github.com/Autoloops/greplica/blob/main/docs/agent-install-prompt.md.
 ```
 
 Full prompt: [docs/agent-install-prompt.md](docs/agent-install-prompt.md)
