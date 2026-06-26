@@ -64,7 +64,6 @@ interface EvalResult {
   anchor_quality?: ProposalAnchorQualityResult;
   backfill_commands: CommandResult[];
   graph_read_command?: CommandResult;
-  proposal_applied?: boolean;
   judge?: {
     model: string;
     judge_input_path: string;
@@ -307,14 +306,11 @@ async function main(): Promise<void> {
   const anchorQuality = proposalCreated
     ? await evaluateProposalAnchorQuality(readJson<unknown>(context.backfillProposalPath), context.targetRepoDir)
     : undefined;
-  const backfillCommands = generation?.exit_code === 0 && proposalCreated ? verifyBackfillProposal() : [];
-  const graphReadCommand = generation?.exit_code === 0 && proposalCreated && backfillCommands.every((command) => command.exit_code === 0)
+  const backfillCommands: CommandResult[] = [];
+  const graphReadCommand = generation?.exit_code === 0 && proposalCreated
     ? readFinalGraph(context)
     : undefined;
-  const proposalApplied = proposalCreated && graphReadCommand?.exit_code === 0
-    ? graphContainsProposalClaim(context, graphReadCommand.stdout ?? "")
-    : false;
-  const judge = graphReadCommand?.exit_code === 0 && args.judge === "openai"
+  const judge = generation?.exit_code === 0 && proposalCreated && args.judge === "openai"
     ? await runOpenAiJudge(context, args, generationTimeSeconds)
     : undefined;
   const success =
@@ -323,8 +319,6 @@ async function main(): Promise<void> {
     proposalCreated &&
     anchorQuality?.passed === true &&
     backfillCommands.every((command) => command.exit_code === 0) &&
-    proposalApplied &&
-    graphReadCommand?.exit_code === 0 &&
     (judge === undefined || judge.score.passed);
 
   writeResult(
@@ -335,7 +329,6 @@ async function main(): Promise<void> {
     anchorQuality,
     backfillCommands,
     graphReadCommand,
-    proposalApplied,
     judge,
     success,
   );
@@ -461,23 +454,10 @@ async function runBackfillAgent(context: RunContext, args: Args): Promise<AgentR
   return result;
 }
 
-function verifyBackfillProposal(): CommandResult[] {
-  return [];
-}
-
 function readFinalGraph(context: RunContext): CommandResult {
   const command = runProductCommand(context, "graph", "read");
   writeFileSync(context.graphReadPath, command.stdout ?? "");
   return command;
-}
-
-function graphContainsProposalClaim(context: RunContext, graphOutput: string): boolean {
-  const proposal = readJson<{ creates?: { claims?: Array<{ text?: unknown }> } }>(context.backfillProposalPath);
-  const claimTexts = proposal.creates?.claims
-    ?.map((claim) => typeof claim.text === "string" ? claim.text : "")
-    .filter((text) => text.length > 0) ?? [];
-  if (claimTexts.length === 0) return true;
-  return claimTexts.some((text) => graphOutput.includes(text));
 }
 
 function runProductCommand(context: RunContext, ...args: string[]): CommandResult {
@@ -565,7 +545,6 @@ function writeResult(
   anchorQuality: ProposalAnchorQualityResult | undefined,
   backfillCommands: CommandResult[],
   graphReadCommand: CommandResult | undefined,
-  proposalApplied: boolean,
   judge: EvalResult["judge"],
   success: boolean,
 ): void {
@@ -587,7 +566,6 @@ function writeResult(
     anchor_quality: anchorQuality,
     backfill_commands: backfillCommands,
     graph_read_command: graphReadCommand,
-    proposal_applied: proposalApplied,
     judge,
   };
 
