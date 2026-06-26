@@ -10,7 +10,7 @@ npm install -g greplica
 greplica install --platform <codex|claude|opencode> --embedding local
 ```
 
-Use the platform matching this agent. Do not manually copy skills. After installation, do not echo the full installer output or repeat its next steps. Give only a compact status line: platform, embedding mode, whether hooks were installed, and whether I may need to restart or trust hooks.
+Use the platform matching this agent. Do not manually copy skills. After installation, do not echo the full installer output or repeat its next steps.
 
 Before running any command, ask me one question:
 "Allow Greplica to learn from your past sessions to show what it can learn?"
@@ -21,7 +21,7 @@ After I answer, run the install commands above, then bootstrap shallow memory fo
 - Prefer using the `greplica-bootstrap` skill.
 - If the skill is not visible until restart, read the installed `greplica-bootstrap/SKILL.md` file and follow it directly.
 - Create, validate, and apply the bootstrap proposal.
-- Keep bootstrap output brief: give a one-sentence summary of what this repo does and say baseline memory was applied.
+- Keep bootstrap output for the final answer to one line: `Greplica is installed and baseline memory was applied.`
 
 If I opted into prior-session learning:
 - Find recent prior sessions for this same repo and platform, preferring work from the last 1-2 days.
@@ -31,14 +31,14 @@ If I opted into prior-session learning:
 - For OpenCode, tell me transcript backfill is not supported yet.
 - Select 1-3 transcripts. Use one if there is a large high-signal session, two by default when multiple sessions are useful, and three only when sessions are smaller or cover distinct work.
 - Show me the selected transcripts before bundling them: title if available, date/time, path, size/turn count if available, and why each matched this repo.
-- Since I already opted in, continue without asking a second confirmation and run:
+- Since I already opted in, continue without asking a second confirmation and run this with a temporary bundle path:
 
 ```bash
 greplica transcript bundle --platform <codex-or-claude> --file <path-1> [--file <path-2>] [--file <path-3>] --out <greplica-transcript-backfill.md>
 ```
 
 - Then use the `greplica-fast-session-bootstrap` skill on `<greplica-transcript-backfill.md>`.
-- After apply, show one important flow/component Greplica can now reconstruct without broad grepping. Include the optional correction section only if there is a strong repo-specific user correction or risk/gotcha:
+- After apply, preserve this transcript-backfill value section in the final answer. Include the optional correction section only if there is a strong repo-specific user correction or risk/gotcha:
 
 ```markdown
 Applied transcript backfill to working memory.
@@ -56,6 +56,9 @@ One correction I will remember
 <Only include this section if there is a strong user correction tied to a repo-specific risk/gotcha. Explain what the agent would otherwise get wrong and what will be considered next time.>
 ```
 
-Then tell me how to use Greplica:
-- Keep this to one sentence: hooks and installed skills are the primary integration; add repo-local AGENTS.md or CLAUDE.md guidance only if hooks are unavailable, not accepted, or I want extra guidance.
+Final answer rules:
+- Start with exactly: `Greplica is installed and baseline memory was applied.`
+- If transcript backfill ran, include the transcript-backfill value section above unchanged.
+- End with exactly: `Hooks and installed skills are active; restart/trust hooks only if prompted.`
+- Do not include installer output, selected transcript recap, proposal paths, apply counts, command lists, bundle paths, or a long usage guide unless I ask.
 `````
