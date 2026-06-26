@@ -51,7 +51,7 @@
       "Evidence edges for session-backed claims should point only to the transcript source that actually supports the claim and should include a meaningful metadata.reason.",
       "Do not require every claim to cite every transcript source; that is a wrong-evidence pattern.",
       "Bad memories should contain candidate claims that are harmful, unsupported, misleading, duplicated, noisy, stale/reverted-as-implemented, generic agent behavior, bad supersedes, or too implementation-specific.",
-      "Use candidate_update.final_message to judge summary_quality. It should show 5-8 non-obvious insights and explicitly show the strongest corrected assumptions: what an agent might have gotten wrong, what Greplica now knows instead, and why it helps.",
+      "Use candidate_update.final_message to judge summary_quality. It should show exactly three compact, non-obvious memories from the applied proposal. Each item should name a concrete repo-specific memory, explain why it helps the next session, and include a compact evidence/connection line. Do not penalize for omitting a 5-8 item summary; that old format is no longer desired.",
       "Flag generic project summaries, raw transcript chatter, historical system/developer prompt content, command logs, unsupported claims, duplicate bootstrap memory without transcript nuance, over-broad capability lists, code facts sourced only from transcript text, and blanket evidence links."
     ],
     "allowed_memory_roles": [

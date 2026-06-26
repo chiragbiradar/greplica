@@ -78,6 +78,8 @@ Code anchors must use real symbols from the target file, such as exported functi
 
 If a transcript says work was planned, reverted, explored, or discussed but not landed, do not store it as implemented code. Store the corrected assumption instead, for example: "this session was planning-only and should not be treated as proof that X landed."
 
+Be especially strict when a later or current checkout contains a similar file or helper. A transcript-backfill memory must come from the previous sessions, not from opportunistically noticing current code. If the bundle says a transcript-projection or eval-input change was reverted or planning-only, do not create components, flows, or `code_verified` claims that say transcript projection is implemented. The useful memory is the rejection/planning status, the user correction, or the future-work boundary.
+
 For session decisions, constraints, rejected alternatives, and future work, use `source_verified` or `unknown` and connect each claim to the relevant session source with an `evidenced_by` edge and a specific `metadata.reason`.
 
 If a transcript discusses an issue, PR, review, or artifact, store the durable fact from the described content only when the bundle includes enough detail to support it. Do not store a title-only summary.
