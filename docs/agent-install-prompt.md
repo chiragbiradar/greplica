@@ -26,8 +26,11 @@ After I answer, run the install commands above, then bootstrap shallow memory fo
 If I opted into prior-session learning:
 - Find recent prior sessions for this same repo and platform, preferring work from the last 1-2 days.
 - Candidate locations: Codex `~/.codex/sessions/**/*.jsonl`; Claude Code `~/.claude/projects/**/*.jsonl`.
+- Do not require transcript metadata `cwd` to equal the current checkout path. Users may use worktrees, renamed folders, or multiple checkouts of the same repo.
+- Treat a transcript as same-repo when its metadata `cwd` is the current path, or when that `cwd` still exists and Git reports the same `remote.origin.url` or same normalized repo identity as the current repo. If the old path no longer exists, use transcript cwd text, repo name, branch, and recent session content as weaker matching evidence.
 - For OpenCode, tell me transcript backfill is not supported yet.
 - Select 1-3 transcripts. Use one if there is a large high-signal session, two by default when multiple sessions are useful, and three only when sessions are smaller or cover distinct work.
+- Show me the selected transcripts before bundling them: title if available, date/time, path, size/turn count if available, and why each matched this repo.
 - Since I already opted in, continue without asking a second confirmation and run:
 
 ```bash
