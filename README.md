@@ -34,18 +34,18 @@ Greplica requires Node.js 22-26.
 Install Greplica for this repo.
 Read and follow docs/agent-install-prompt.md.
 Use the platform matching this agent and local embeddings.
-Before install/bootstrap, ask whether to use the last five prior sessions for richer memory.
+Ask first whether to use recent prior sessions for richer memory.
 ```
 
 Full prompt: [docs/agent-install-prompt.md](docs/agent-install-prompt.md)
 
-After that, the normal onboarding flow is:
+That prompt runs the full onboarding flow:
 
 | Step | Ask your agent | What happens |
 | --- | --- | --- |
-| 1 | Paste the prompt above | Installs the CLI, installs the matching agent integration, and reports hooks/skills status. |
-| 2 | `Use greplica-bootstrap for this repo.` | Creates the first repo memory map. |
-| 3 | Optional prior-session learning | Shows five same-repo transcripts, bundles them, and stores three high-signal memories. |
+| 1 | Paste the prompt above | Agent asks about prior sessions, installs the CLI, installs the matching repo integration, and reports hooks/skills status. |
+| 2 | Same prompt continues | Agent bootstraps baseline repo memory. |
+| 3 | If you opted in | Agent shows 1-3 recent same-repo transcripts, bundles them, and stores reconstructable flow/component memory. |
 | 4 | Work normally | The agent can query `greplica graph context "<question>"` before broad exploration. |
 | 5 | Accept hooks, or run `Use greplica-update-working-memory for this session.` manually | Durable decisions, constraints, changed flows, and follow-ups are saved. |
 
@@ -166,7 +166,7 @@ The agent reads your repository shallowly - README, config files, key entrypoint
 
 ### 5. Optionally backfill from prior sessions
 
-Ask your agent to find five recent prior sessions for this repo and show you the selected transcript paths before it reads them deeply. If you already asked it to use prior sessions, it should continue from the shown list without asking a second confirmation.
+Ask your agent to find 1-3 recent prior sessions for this repo and show you the selected transcript paths before it reads them deeply. Prefer same-repo sessions from the last 1-2 days. If one large, high-signal session is enough, use one; otherwise use two by default and three only when the sessions are smaller or cover distinct work. If you already asked it to use prior sessions, it should continue from the shown list without asking a second confirmation.
 
 Candidate locations:
 
@@ -186,7 +186,7 @@ Then ask:
 Use greplica-fast-session-bootstrap on .greplica-transcript-backfill.md.
 ```
 
-The skill reads the bundle, extracts durable decisions/gotchas/rejected approaches/follow-up work, validates and applies the proposal, then shows three compact memories that demonstrate what Greplica learned.
+The skill reads the bundle, extracts durable flow/component context plus high-signal decisions/gotchas/rejected approaches/follow-up work, validates and applies the proposal, then shows one important flow/component it can now reconstruct without broad grepping. If there is a strong repo-specific user correction or risk, it shows that too.
 
 ---
 
