@@ -31,10 +31,10 @@ Most users should not install Greplica by hand. Paste this into your coding agen
 Greplica requires Node.js 22-26.
 
 ```txt
-Install Greplica for this repo using https://github.com/Autoloops/greplica/blob/main/docs/agent-install-prompt.md.
+Install Greplica for this repo using https://raw.githubusercontent.com/Autoloops/greplica/refs/heads/main/docs/agent-install-prompt.md.
 ```
 
-Full prompt: [docs/agent-install-prompt.md](docs/agent-install-prompt.md)
+Full prompt: [docs/agent-install-prompt.md](https://raw.githubusercontent.com/Autoloops/greplica/refs/heads/main/docs/agent-install-prompt.md)
 
 That prompt runs the full onboarding flow:
 
