@@ -13,7 +13,7 @@ greplica install --platform <codex|claude|opencode> --embedding local
 Use the platform matching this agent. Do not manually copy skills. After installation, do not echo the full installer output or repeat its next steps.
 
 Before running any command, ask me one question:
-"Allow Greplica to learn from your past sessions to show what it can learn?"
+"Allow Greplica to analyze previous sessions to remember the context your agent usually forgets?"
 
 Recommend yes, but do not read old transcripts deeply until I answer.
 
