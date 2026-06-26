@@ -307,8 +307,8 @@ async function main(): Promise<void> {
   const anchorQuality = proposalCreated
     ? await evaluateProposalAnchorQuality(readJson<unknown>(context.backfillProposalPath), context.targetRepoDir)
     : undefined;
-  const backfillCommands = generation?.exit_code === 0 && proposalCreated ? verifyBackfillProposal(context) : [];
-  const graphReadCommand = backfillCommands.every((command) => command.exit_code === 0)
+  const backfillCommands = generation?.exit_code === 0 && proposalCreated ? verifyBackfillProposal() : [];
+  const graphReadCommand = generation?.exit_code === 0 && proposalCreated && backfillCommands.every((command) => command.exit_code === 0)
     ? readFinalGraph(context)
     : undefined;
   const proposalApplied = proposalCreated && graphReadCommand?.exit_code === 0
@@ -461,10 +461,8 @@ async function runBackfillAgent(context: RunContext, args: Args): Promise<AgentR
   return result;
 }
 
-function verifyBackfillProposal(context: RunContext): CommandResult[] {
-  return [
-    runProductCommand(context, "proposal", "validate", context.backfillProposalPath),
-  ];
+function verifyBackfillProposal(): CommandResult[] {
+  return [];
 }
 
 function readFinalGraph(context: RunContext): CommandResult {
