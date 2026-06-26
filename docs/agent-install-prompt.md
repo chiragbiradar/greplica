@@ -1,7 +1,5 @@
 # Agent Install Prompt
 
-Paste this prompt into your coding agent from inside the repo you want Greplica to remember.
-
 `````txt
 Install Greplica for this repo.
 
@@ -15,7 +13,7 @@ greplica install --platform <codex|claude|opencode> --embedding local
 Use the platform matching this agent. Do not manually copy skills. After installation, summarize the installer output, including skills, embedding mode, whether hooks were installed, and whether I need to restart or trust hooks.
 
 Before running any command, ask me one question:
-"Should I use recent prior sessions for this same repo to create richer Greplica memory?"
+"Allow Greplica to learn from your past sessions to show what it can learn?"
 
 Recommend yes, but do not read old transcripts deeply until I answer.
 
@@ -30,14 +28,13 @@ If I opted into prior-session learning:
 - Candidate locations: Codex `~/.codex/sessions/**/*.jsonl`; Claude Code `~/.claude/projects/**/*.jsonl`.
 - For OpenCode, tell me transcript backfill is not supported yet.
 - Select 1-3 transcripts. Use one if there is a large high-signal session, two by default when multiple sessions are useful, and three only when sessions are smaller or cover distinct work.
-- Show me the selected transcripts before bundling them: title if available, date/time, path, size/turn count if available, and why each matched this repo.
 - Since I already opted in, continue without asking a second confirmation and run:
 
 ```bash
-greplica transcript bundle --platform <codex-or-claude> --file <path-1> [--file <path-2>] [--file <path-3>] --out .greplica-transcript-backfill.md
+greplica transcript bundle --platform <codex-or-claude> --file <path-1> [--file <path-2>] [--file <path-3>] --out <greplica-transcript-backfill.md>
 ```
 
-- Then use the `greplica-fast-session-bootstrap` skill on `.greplica-transcript-backfill.md`.
+- Then use the `greplica-fast-session-bootstrap` skill on `<greplica-transcript-backfill.md>`.
 - After apply, show one important flow/component Greplica can now reconstruct without broad grepping. Include the optional correction section only if there is a strong repo-specific user correction or risk/gotcha:
 
 ```markdown
@@ -49,7 +46,7 @@ What I can now reconstruct without grepping
 - <specific workflow/component fact Greplica stored>
 - <specific constraint, decision, or edge in the flow>
 
-Stored in my graph. Next time, ask `greplica graph context "<topic>"`; no grep reconstruction needed.
+Stored in my graph. Next time your agent will ask `greplica graph context "<topic>"`; no grep reconstruction needed.
 
 One correction I will remember
 
@@ -57,8 +54,5 @@ One correction I will remember
 ```
 
 Then tell me how to use Greplica:
-- Tell me that during work, the agent can use `greplica graph context "<question about the current task>"` to fetch relevant repo context, including prior working memory, before broad manual exploration.
-- Tell me that near the end of a useful session, I should run "Use greplica-update-working-memory for this session." so decisions, changed flows, constraints, and follow-up work are stored.
-- Tell me that OpenAI embeddings are also available later by rerunning `greplica install --platform <codex-or-claude-or-opencode> --embedding openai`.
 - IMPORTANT: tell me that hooks and installed skills are the primary integration. Add a short AGENTS.md or CLAUDE.md instruction only if hooks are unavailable, not accepted, or I want extra repo-local guidance.
 `````
