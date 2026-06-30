@@ -50,7 +50,7 @@ export const claudeInstaller: PlatformInstaller = {
   },
 };
 
-function claudeTranscriptToMarkdown(jsonl: string): string {
+export function claudeTranscriptToMarkdown(jsonl: string): string {
   const metadata: Record<string, string> = {};
   const messages: SessionTranscriptMessage[] = [];
 

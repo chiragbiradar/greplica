@@ -57,7 +57,7 @@ const cliCommands = [
   {
     key: "install",
     path: ["install"],
-    usage: "install --platform codex|claude|opencode|openhands --embedding local|openai [--hooks enabled|disabled] [--auto-memory enabled|disabled]",
+    usage: "install --platform codex|claude|opencode|openhands|factory-droid --embedding local|openai [--hooks enabled|disabled] [--auto-memory enabled|disabled]",
     handler: runInstallCommand,
     showInTopLevelHelp: true,
   },
@@ -149,7 +149,7 @@ const cliCommands = [
   {
     key: "hookIngest",
     path: ["hook", "ingest"],
-    usage: "hook ingest --platform codex|claude|openhands",
+    usage: "hook ingest --platform codex|claude|openhands|factory-droid",
     handler: runHookIngest,
   },
   {
@@ -519,7 +519,7 @@ function parseHookIngestPlatform(args: string[]): InstallPlatform {
 }
 
 function parseHookPlatform(value: string | undefined): InstallPlatform {
-  if (value === "codex" || value === "claude" || value === "openhands") return value;
+  if (value === "codex" || value === "claude" || value === "openhands" || value === "factory-droid") return value;
   throw new Error(usage("hookIngest"));
 }
 
@@ -766,7 +766,7 @@ function requireFlagValue(args: string[], index: number, flag: string, usageText
 }
 
 function parseInstallPlatform(value: string): InstallPlatform {
-  if (value === "codex" || value === "claude" || value === "opencode" || value === "openhands") return value;
+  if (value === "codex" || value === "claude" || value === "opencode" || value === "openhands" || value === "factory-droid") return value;
   throw new Error(`Invalid --platform ${value}.\n${usage("install")}`);
 }
 

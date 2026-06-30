@@ -145,6 +145,9 @@ greplica install --platform opencode --embedding local
 
 # OpenHands
 greplica install --platform openhands --embedding local
+
+# Factory Droid
+greplica install --platform factory-droid --embedding local
 ```
 
 This copies the Greplica agent skills, configures local embeddings (no API key needed), and initializes the memory database.
@@ -224,7 +227,7 @@ Switch at any time by rerunning `greplica install` with the new flag.
 ## Commands
 
 ```bash
-greplica install --platform codex|claude|opencode|openhands --embedding local|openai [--hooks enabled|disabled] [--auto-memory enabled|disabled]
+greplica install --platform codex|claude|opencode|openhands|factory-droid --embedding local|openai [--hooks enabled|disabled] [--auto-memory enabled|disabled]
 greplica config
 greplica doctor [--check-embeddings]
 greplica graph read
