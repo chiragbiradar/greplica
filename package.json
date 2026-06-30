@@ -1,6 +1,6 @@
 {
   "name": "greplica",
-  "version": "0.1.17",
+  "version": "0.1.18",
   "description": "Long-term, searchable AGENTS.md for coding agents.",
   "private": false,
   "type": "module",
