@@ -18,7 +18,7 @@
 
 Does your coding agent spend 5 minutes just grepping around when you give it a complex task?
 
-That's because it is re-learrning context. Every new session, your agent wastes tokens and time building context on work it already did. And still misses important facts.
+That's because it is re-learning context. Every new session, your agent wastes tokens and time building context on work it already did. And still misses important facts.
 
 **Greplica** explores your repo structure, code and session transcripts (fully local, no telemetry) to give your agent a persistent, maintained memory it can query before exploring.
 
@@ -26,7 +26,7 @@ That's because it is re-learrning context. Every new session, your agent wastes 
 
 ## Agent Quick Start
 
-Most users should not install Greplica by hand. Paste this into your coding agent from inside the repo you want Greplica to remember. The agent will start with a short setup questionnaire before installing anything, so you can choose hooks, automatic memory updates, and prior-session backfill.
+Most users should not install Greplica by hand. Paste this into your coding agent from inside the repo you want Greplica to remember.
 
 Greplica requires Node.js 22-26.
 
@@ -36,16 +36,7 @@ Install Greplica for this repo using https://raw.githubusercontent.com/Autoloops
 
 Full prompt: [docs/agent-install-prompt.md](https://raw.githubusercontent.com/Autoloops/greplica/refs/heads/main/docs/agent-install-prompt.md)
 
-That prompt runs the full onboarding flow:
-
-| Step | Ask your agent | What happens |
-| --- | --- | --- |
-| 1 | Paste the prompt above | Agent asks how Greplica should guide future agents, whether it should auto-save memory, and whether it should inspect prior sessions. |
-| 2 | Same prompt continues | Agent installs the CLI and matching repo integration using your selected hook and memory-update mode. |
-| 3 | Same prompt continues | Agent bootstraps baseline repo memory. |
-| 4 | If you opted in | Agent shows 1-3 recent same-repo transcripts, bundles them, and stores reconstructable flow/component memory. |
-| 5 | Work normally | The agent can query `greplica graph context "<question>"` before broad exploration. |
-| 6 | Accept hooks, or run `Use greplica-update-working-memory for this session.` manually | Durable decisions, constraints, changed flows, and follow-ups are saved. |
+That prompt asks a short setup questionnaire, installs Greplica with your chosen hook mode, creates the first saved context from the repo, and can optionally pull durable learnings from recent sessions.
 
 To visualise your current memory in browser, run:
 
@@ -57,29 +48,18 @@ greplica graph view
 
 ## How It Works
 
-Greplica stores engineering context in a local SQLite database as a structured knowledge graph:
+Greplica starts by reading your repo shallowly and pulling out the parts a future agent would otherwise have to rediscover: which area owns what, how important workflows cross files, why certain code is shaped the way it is, which constraints keep showing up, and where to look first. During setup, `greplica-bootstrap` does that first pass by reading high-signal docs, config, entrypoints, and type boundaries instead of trying to memorize the whole codebase.
 
+What it saves is plain and practical: important parts of the codebase, recurring workflows, decisions, constraints, gotchas, follow-up work, and file anchors that point the agent at the right place. Under the hood, those are stored as `components`, `flows`, and `claims`, plus sources and links between them, in a local SQLite database at `~/.greplica/graph.db` unless `GREPLICA_HOME` overrides it. Greplica validates each proposal before applying it, writes it as a new memory commit, and chains that commit to the previous one in the same repo scope.
 
-| Object        | What it represents                                                                                   |
-| ------------- | ---------------------------------------------------------------------------------------------------- |
-| **Component** | A distinct code module or subsystem, with a file anchor pointing where to look                       |
-| **Flow**      | A workflow or process that spans multiple components                                                 |
-| **Claim**     | A durable fact, decision, constraint, gotcha, or task linked to the components or flows it describes |
-| **Edge**      | A typed relationship: `about`, `touches`, `contains`, `supersedes`, `evidenced_by`                   |
+That first pass is only the start. If you have useful old sessions, `greplica-fast-session-bootstrap` can read a bundled transcript and save the parts that should survive beyond chat history: durable decisions, gotchas, rejected approaches, and follow-up work. After normal work sessions, hooks can remind the agent to query Greplica early and, if you enabled auto-save, try a background update after enough activity. If hooks are unavailable or you want to do it manually, `greplica-update-working-memory` saves the durable learnings from the current session without turning the whole transcript into clutter.
 
+When the next agent starts a task, it asks Greplica a focused question with `greplica graph context "<question>"`. Greplica compares that question against what it has already saved, combines embeddings, keyword scoring, and relationship boosts, and returns the most relevant decisions, workflows, and code locations as Markdown the agent can act on immediately. The agent still reads code, but it starts from the right files and with the right constraints in mind instead of grepping from scratch.
 
-When your agent asks `greplica graph context "<question>"`, Greplica runs a hybrid retrieval pipeline - combining vector similarity, BM25 keyword scoring, and graph adjacency boosts - and returns a concise Markdown summary the agent can act on immediately.
-
----
-
-## What the Agent Actually Sees
-
-Running `greplica graph context "how does proposal apply work?"` outputs:
+A result can look like this:
 
 ```markdown
 # Graph Context
-
-Query: how does proposal apply work?
 
 ## Components
 
@@ -103,124 +83,23 @@ Claims:
 - `claim.apply_prints_commit_scope_and_counts` (fact, code_verified): proposal apply prints the memory commit ID, scope ID, and created object counts.
 ```
 
-The agent gets the relevant file anchors, the decision trail, and the constraints - without reading the whole codebase.
+That is the loop Greplica is trying to tighten: read the repo once, keep the useful parts, bring them back when an agent asks, then keep refining them as work continues.
 
 ---
 
-## Normal Session Workflow
+## SWE-chat Benchmarks
 
+We also benchmark Greplica on held-out planning tasks built from [SWE-chat](https://www.swe-chat.com/), a dataset of real coding-agent sessions from public repositories ([dataset](https://huggingface.co/datasets/SALT-NLP/SWE-chat), [paper](https://arxiv.org/abs/2604.20779)).
 
-| When                    | Ask your agent                                         | What happens                                                               |
-| ----------------------- | ------------------------------------------------------ | -------------------------------------------------------------------------- |
-| Before starting a task  | (automatic when hooks/agent guidance are active)       | Agent runs `greplica graph context "<task>"` before broad file exploration |
-| During work             | Agent uses context to navigate                         | Relevant components, flows, and past decisions surface immediately         |
-| End of a useful session | `Use greplica-update-working-memory for this session.` | Decisions, changed flows, constraints, and follow-up work are saved        |
+For each case, we start from a clean base snapshot of the repo, use 2-4 earlier sessions from that same repo to build Greplica context, and then run the same held-out planning task in two modes: a baseline run with no Greplica context, and a Greplica run where the agent can query `greplica graph context` during the task. Greplica context is created with one bootstrap pass plus replayed session updates, so the agent starts from the kind of saved repo-specific decisions and workflow knowledge that real teams build up over time.
 
+Across the showcased planning cases, Greplica often cuts token usage by roughly 40-50% and can reduce wall-clock time by around 30%. It can also improve the result itself: in the stronger cases, the agent produces a better plan because it starts with the right repo-specific constraints, decisions, and subsystem boundaries instead of rediscovering them late. In the strongest run we measured, Greplica used 75.0% fewer tokens and finished about 38% faster.
 
----
+Current showcase examples:
 
-## Quick Start (manual)
-
-### 1. Install the CLI
-
-Greplica requires Node.js 22-26.
-
-```bash
-npm install -g greplica
-```
-
-### 2. Install for your coding agent
-
-Run exactly one of these from inside the repository you want Greplica to remember:
-
-```bash
-# Claude Code
-greplica install --platform claude --embedding local
-
-# Codex
-greplica install --platform codex --embedding local
-
-# OpenCode
-greplica install --platform opencode --embedding local
-
-# OpenHands
-greplica install --platform openhands --embedding local
-
-# Factory Droid
-greplica install --platform factory-droid --embedding local
-```
-
-This copies the Greplica agent skills, configures local embeddings (no API key needed), and initializes the memory database.
-By default, supported platforms install hooks and enable automatic memory updates. Use `--hooks disabled` to skip hook installation, or `--auto-memory disabled` to keep hook guidance without background memory updates.
-
-### 3. Restart or trust hooks if needed
-
-After install, restart your coding agent if the new skills or hooks do not appear immediately. If your agent asks you to trust or accept the installed hooks, accept them for this repo.
-
-Hooks record session activity and attempt background working-memory updates. If hooks are unavailable or not accepted, manually ask the agent to use `greplica-update-working-memory` near the end of useful sessions. Add a short `AGENTS.md` or `CLAUDE.md` instruction only if you want extra repo-local guidance.
-
-### 4. Bootstrap memory for this repository (once)
-
-Ask your agent:
-
-```
-Use greplica-bootstrap for this repo.
-```
-
-The agent reads your repository shallowly - README, config files, key entrypoints, type definitions - and writes a structured memory proposal. After validation and apply, the graph is ready.
-
-### 5. Optionally backfill from prior sessions
-
-Ask your agent to find 1-3 recent prior sessions for this repo and show you the selected transcript paths before it reads them deeply. Prefer same-repo sessions from the last 1-2 days. If one large, high-signal session is enough, use one; otherwise use two by default and three only when the sessions are smaller or cover distinct work. If you already asked it to use prior sessions, it should continue from the shown list without asking a second confirmation.
-
-Candidate locations:
-
-- Codex: `~/.codex/sessions/**/*.jsonl`.
-- Claude Code: search both `~/.claude/projects/<sanitized-current-cwd>/*.jsonl` and `~/.claude/projects/**/*.jsonl`.
-- Same-repo matching should handle worktrees and renamed folders. Prefer exact metadata `cwd` matches, but also accept transcripts whose metadata `cwd` still exists and has the same Git `remote.origin.url` or normalized repo identity as the current repo. If the old path no longer exists, use cwd text, repo name, branch, and recent session content as weaker matching evidence.
-- OpenCode: transcript backfill is not supported yet.
-
-Bundle them:
-
-```bash
-greplica transcript bundle --platform codex|claude --file <path> [--file <path>...] --out .greplica-transcript-backfill.md
-```
-
-Then ask:
-
-```
-Use greplica-fast-session-bootstrap on .greplica-transcript-backfill.md.
-```
-
-The skill reads the bundle, extracts durable flow/component context plus high-signal decisions/gotchas/rejected approaches/follow-up work, validates and applies the proposal, then shows one important flow/component it can now reconstruct without broad grepping. If there is a strong repo-specific user correction or risk, it shows that too.
-
----
-
-## What Gets Stored
-
-Greplica is for context that is too detailed for an always-read prompt but too important to rediscover from scratch:
-
-- **Architecture and service boundaries** - which module owns what, where boundaries are enforced
-- **Implementation decisions** - why the code is shaped the way it is
-- **Workflow behavior** - how commands and flows work across multiple components
-- **Repo-specific gotchas** - edge cases and non-obvious behaviors that caused bugs
-- **Constraints and rejected alternatives** - what not to do, and why
-- **Follow-up tasks** - work that was deferred, not forgotten
-
-The goal is not to replace source code or documentation. It is to give agents a durable map of what matters and where to look next.
-
----
-
-## Embedding Options
-
-
-| Mode            | Command flag         | Requires         | Notes                                                                                                                                                  |
-| --------------- | -------------------- | ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Local (default) | `--embedding local`  | Nothing          | Runs `all-mpnet-base-v2` in-process via HuggingFace Transformers. First query downloads the model (~~420MB) and caches it under `~~/.greplica/models`. |
-| OpenAI          | `--embedding openai` | `OPENAI_API_KEY` | Uses `text-embedding-3-small`. Better retrieval quality, requires network access per query.                                                            |
-
-
-Switch at any time by rerunning `greplica install` with the new flag.
+- `swechat-gemini-voyager-sync-auth-bug` hardened rerun: score `100 -> 100`, `75.0%` fewer tokens, `140.4s` faster.
+- `swechat-iptvnator-playback-layout-plan`: score `64 -> 100`, `44.6%` fewer tokens.
+- `swechat-marin-harbor-swe-eval-support`: score `6 -> 100`, `26.7%` fewer tokens, `80.2s` faster.
 
 ---
 
@@ -244,35 +123,7 @@ greplica proposal apply <proposal.json>
 - `greplica graph read` - prints the current graph view: all components, flows, claims, sources, and edges in scope.
 - `greplica graph view` to visualise the current memory in a local HTML, opens in your default browser. Use `--out` to choose where the file is written; by default it goes to a temp path.
 - `greplica transcript bundle` - converts one or more Codex or Claude Code JSONL transcripts into a sanitized Markdown bundle for `greplica-fast-session-bootstrap`.
-- `greplica doctor` - verifies installation and diagnoses embedding configuration failures. Not a required preflight before every command.
-- `greplica install` prepares repo memory state; normal repo commands require install first.
+- `greplica doctor` - verifies installation and diagnoses configuration failures. Not a required preflight before every command.
+- `greplica install` prepares repo state, local storage, and agent integration; normal repo commands require install first.
 
 For **OpenHands**, install is repo-local: skills are written to `.agents/skills/` and the `UserPromptSubmit`/`Stop` hooks to `.openhands/hooks.json` (Claude/Codex install to the agent's home config instead). The hooks inject `graph context` guidance and trigger background working-memory updates the same way; OpenHands must trust the repo hooks for the background save to run.
-
----
-
-## Evals and Benchmarks
-
-Greplica includes evals for the workflows that matter most:
-
-- bootstrapping repo memory
-- graph context retrieval
-- working-memory updates from real sessions
-- proposal validation and apply behavior
-
-The search eval scores `greplica graph context` retrieval with `Precision@10`, `Recall@10`, `MRR@10`, `nDCG@10`, and `GradeRecall@10` over 34 realistic task-sentence queries against a deep synthetic fixture.
-
-
-| Eval                          | Latest local result   |
-| ----------------------------- | --------------------- |
-| `npm run eval:search-current` | Passed, `80.59 / 100` |
-| `P@10`                        | `0.550`               |
-| `R@10`                        | `0.782`               |
-| `MRR@10`                      | `0.985`               |
-| `nDCG@10`                     | `0.802`               |
-| `GradeRecall@10`              | `0.828`               |
-
-
-Broader context-retrieval benchmarking, including SWE-Context benchmark work, is ongoing and showing promising early results. We will publish those numbers when the harness and methodology are stable enough to compare fairly.
-
----
